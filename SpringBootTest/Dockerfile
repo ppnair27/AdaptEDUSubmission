@@ -2,9 +2,9 @@ FROM maven:3.9-eclipse-temurin-17
 
 WORKDIR /app
 
-COPY AdaptEDUv0507/SpringBootTest ./SpringBootTest
+COPY . .
 
-WORKDIR /app/SpringBootTest
+WORKDIR /app/AdaptEDUv0507/SpringBootTest
 
 RUN mvn clean install
 
