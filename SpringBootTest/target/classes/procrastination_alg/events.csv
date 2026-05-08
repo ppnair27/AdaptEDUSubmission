@@ -1,0 +1,9 @@
+name,startTime,endTime,duration,location,travelTime,status,category,description
+School,2026-04-27T08:00:00,2026-04-27T15:00:00,60,Main Building,0,FIXED,school,
+School,2026-04-28T08:00:00,2026-04-28T15:00:00,60,Main Building,0,FIXED,school,
+School,2026-04-29T08:00:00,2026-04-29T15:00:00,60,Main Building,0,FIXED,school,
+School,2026-04-30T08:00:00,2026-04-30T15:00:00,60,Main Building,0,FIXED,school,
+School,2026-05-01T08:00:00,2026-05-01T15:00:00,60,Main Building,0,FIXED,school,
+Soccer Practice,2026-04-28T16:30:00,2026-04-28T18:00:00,60,Sports Field,0,FIXED,extracurricular,
+Club Meeting,2026-04-30T15:00:00,2026-04-30T16:00:00,60,Room 204,0,OPTIONAL,extracurricular,
+Work Shift,2026-04-29T16:00:00,2026-04-29T20:00:00,60,Office,0,FIXED,work,

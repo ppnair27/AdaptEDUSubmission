@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<!-- HTML5 Document Declaration -->
+<html lang="en">
+<!-- Head section: Contains metadata, stylesheets, and fonts -->
+<head>
+    <meta charset="UTF-8">
+    <!-- Character encoding for the document -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Responsive design meta tag -->
+    <title>AdaptEDU</title>
+    <!-- Page title -->
+    <link rel="stylesheet" href="styles2.css">
+    <!-- Link to external CSS stylesheet -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <!-- Preconnect to Google Fonts for faster loading -->
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Google Fonts link for custom fonts -->
+    <!-- Web App Manifest for PWA -->
+    <link rel="manifest" href="/manifest.json">
+</head>
+<!-- Body section: Contains the main content of the page -->
+<body>
+    <!-- Main application container -->
+    <div class="app-container">
+
+        <!-- Top Bar: Contains logo, navigation, view toggles, and action buttons -->
+        <header class="top-bar">
+            <!-- Logo section -->
+            <div class="logo">AdaptEDU</div>
+            <!-- Week navigation: Previous, Today, Week label, Next buttons -->
+            <div class="week-nav">
+                <button class="icon-btn" id="prev-btn">&#8249;</button>
+                <button class="pill-btn" id="today-btn">Today</button>
+                <span class="week-label" id="week-label"></span>
+                <button class="icon-btn" id="next-btn">&#8250;</button>
+            </div>
+            <!-- View toggle buttons: Week, Month, Day -->
+            <div class="view-toggle">
+                <button class="view-btn active" data-view="week">Week</button>
+                <button class="view-btn" data-view="month">Month</button>
+                <button class="view-btn" data-view="day">Day</button>
+            </div>
+            <!-- Action buttons: Add Event and Add Task -->
+            <div class="actions">
+                <div class="pomodoro-wrapper">
+                    <button class="icon-btn" id="pomodoro-btn" title="Pomodoro Timer">🍅</button>
+                    <div id="pomodoro-popup" class="pomodoro-popup hidden">
+                        <div class="pomo-popup-title">Active Session!</div>
+                        <div id="pomo-popup-task">Task Name</div>
+                        <button class="accent-btn" id="pomo-popup-join" style="margin-top: 10px; width: 100%; font-size: 11px; padding: 6px;">Join Now</button>
+                    </div>
+                </div>
+                <button class="pill-btn" id="add-event-btn">+ Event</button>
+                <button class="accent-btn" id="add-task-btn">+ Task</button>
+            </div>
+        </header>
+
+        <!-- Main body: Contains sidebar and content area -->
+        <div class="main-body">
+            <!-- Mobile Sidebar Toggle -->
+            <button class="mobile-panel-toggle" id="mobile-sidebar-toggle">Show Filters &amp; Stats ▼</button>
+            <!-- Sidebar: Displays calendars and statistics -->
+            <aside class="sidebar">
+                <!-- Calendar categories section -->
+                <div class="sidebar-section">
+                    <div class="section-label">CALENDARS</div>
+                    <div class="category-item"><span class="dot school"></span>School</div>
+                    <div class="category-item"><span class="dot work"></span>Work</div>
+                    <div class="category-item"><span class="dot personal"></span>Personal</div>
+                    <div class="category-item"><span class="dot extracurricular"></span>Extracurricular</div>
+                    <div class="category-item"><span class="dot other"></span>Other</div>
+                </div>
+                <!-- Spacer for layout -->
+                <div class="sidebar-spacer"></div>
+                <!-- Mini statistics and category distribution -->
+                <div class="mini-stats">
+                    <div class="stat-box"><div class="stat-val blue" id="stat-pending">0</div><div class="stat-label">Pending</div></div>
+                    <div class="stat-box"><div class="stat-val red" id="stat-overdue">0</div><div class="stat-label">Overdue</div></div>
+                    <div class="stat-box"><div class="stat-val purple" id="stat-events">0</div><div class="stat-label">Events</div></div>
+
+                    <div class="category-bars">
+                        <div class="section-label">CATEGORY LOAD</div>
+
+                        <div class="category-bar-row" data-cat="school">
+                            <div class="category-bar-head"><span class="dot school"></span><span>School</span><span class="bar-count" id="bar-count-school">0</span></div>
+                            <div class="category-bar-track"><div class="category-bar-fill school" id="cat-bar-school"></div></div>
+                        </div>
+
+                        <div class="category-bar-row" data-cat="work">
+                            <div class="category-bar-head"><span class="dot work"></span><span>Work</span><span class="bar-count" id="bar-count-work">0</span></div>
+                            <div class="category-bar-track"><div class="category-bar-fill work" id="cat-bar-work"></div></div>
+                        </div>
+
+                        <div class="category-bar-row" data-cat="personal">
+                            <div class="category-bar-head"><span class="dot personal"></span><span>Personal</span><span class="bar-count" id="bar-count-personal">0</span></div>
+                            <div class="category-bar-track"><div class="category-bar-fill personal" id="cat-bar-personal"></div></div>
+                        </div>
+
+                        <div class="category-bar-row" data-cat="extracurricular">
+                            <div class="category-bar-head"><span class="dot extracurricular"></span><span>Extracurricular</span><span class="bar-count" id="bar-count-extracurricular">0</span></div>
+                            <div class="category-bar-track"><div class="category-bar-fill extracurricular" id="cat-bar-extracurricular"></div></div>
+                        </div>
+
+                        <div class="category-bar-row" data-cat="other">
+                            <div class="category-bar-head"><span class="dot other"></span><span>Other</span><span class="bar-count" id="bar-count-other">0</span></div>
+                            <div class="category-bar-track"><div class="category-bar-fill other" id="cat-bar-other"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Content Area: Calendar and task list -->
+            <main class="content-area">
+                <!-- Calendar panel: Displays week/month/day views -->
+                <div class="calendar-panel" id="calendar"></div>
+
+                <!-- Mobile Task Toggle -->
+                <button class="mobile-panel-toggle" id="mobile-tasks-toggle">Show Tasks &amp; Events ▼</button>
+                <!-- Task / Archive Panel: Tabs for tasks and archive -->
+                <div class="task-list-panel">
+                    <!-- Tabs for switching between tasks and archive -->
+                    <div class="task-panel-tabs">
+                        <button class="tab-btn active" data-tab="tasks">Tasks</button>
+                        <button class="tab-btn" data-tab="events">Events</button>
+                        <button class="tab-btn" data-tab="archive">Archive</button>
+                    </div>
+                    <!-- Subheader for task list sorting -->
+                    <div class="task-list-subheader" id="task-list-subheader">Priority Score ↓</div>
+                    <!-- Content area for task list -->
+                    <div class="task-list-content" id="task-list"></div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Detail Popover: Modal for displaying task/event details -->
+    <div id="detail-popover" class="detail-popover hidden">
+        <!-- Popover header with dot, title, and close button -->
+        <div class="popover-header">
+            <div class="popover-dot" id="popover-dot"></div>
+            <div class="popover-title" id="popover-title"></div>
+            <button class="close-btn" id="close-popover">&times;</button>
+        </div>
+        <!-- Popover body: Contains details -->
+        <div class="popover-body" id="popover-body"></div>
+        <!-- Popover footer: Action buttons -->
+        <div class="popover-footer" id="popover-footer"></div>
+    </div>
+
+    <!-- Full-Screen Pomodoro View -->
+    <div id="pomodoro-view" class="pomodoro-view hidden">
+        <div class="pomo-top-nav">
+            <button class="icon-btn" id="close-pomo-btn" title="Back to Calendar">✕</button>
+        </div>
+        <div class="pomo-content">
+            <h2 id="pomo-current-task">No active task</h2>
+            <div class="pomo-session-times" id="pomo-session-times"></div>
+            
+            <div class="pomo-modes">
+                <button class="pomo-mode-btn active" data-work="25" data-break="5">25w / 5r</button>
+                <button class="pomo-mode-btn" data-work="30" data-break="5">30w / 5r</button>
+                <button class="pomo-mode-btn" data-work="60" data-break="15">60w / 15r</button>
+            </div>
+            
+            <div class="pomo-timer-display" id="pomo-timer-display">25:00</div>
+            <div class="pomo-phase-label" id="pomo-phase-label">Work Time</div>
+            
+            <div class="pomo-controls">
+                <button class="accent-btn pomo-main-btn" id="pomo-start-pause-btn">Start</button>
+                <button class="pill-btn pomo-skip-btn" id="pomo-skip-btn">Skip Phase ⏭</button>
+            </div>
+            
+            <!-- Pomodoro Theme Selector -->
+            <div class="pomo-theme-selector">
+                <button class="pomo-color-btn pink" data-color="pink" title="Pink"></button>
+                <button class="pomo-color-btn green" data-color="green" title="Green"></button>
+                <button class="pomo-color-btn blue" data-color="blue" title="Blue"></button>
+                <button class="pomo-color-btn yellow" data-color="yellow" title="Yellow"></button>
+                <button class="pomo-color-btn white" data-color="white" title="White"></button>
+                <button class="pomo-color-btn black" data-color="black" title="Black"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Task Modal: Form for creating new tasks -->
+    <div id="add-task-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <!-- Modal header with title and close button -->
+            <div class="modal-header">
+                <h2>New Task</h2>
+                <button class="close-btn" id="close-task-modal">&times;</button>
+            </div>
+            <!-- Task form: Fields for task details -->
+            <form id="task-form" class="modal-form">
+                <!-- Task name input -->
+                <label for="task-name">Task Name *</label>
+                <input type="text" id="task-name" name="task-name" placeholder="e.g., Finish project report" required>
+                <!-- Category and due date row -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="task-category">Category</label>
+                        <select id="task-category" name="task-category">
+                            <option value="School">School</option>
+                            <option value="Work">Work</option>
+                            <option value="Personal">Personal</option>
+                            <option value="Extracurricular">Extracurricular</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="task-due-date">Due Date &amp; Time *</label>
+                        <input type="datetime-local" id="task-due-date" name="task-due-date" required>
+                    </div>
+                </div>
+                <!-- Description textarea -->
+                <label for="task-description">Description</label>
+                <textarea id="task-description" name="task-description" rows="2" placeholder="Optional notes..."></textarea>
+            <!-- Max session, priority, and estimated time row -->
+                <div class="form-row">
+                    <div class="form-group">
+                    <label for="task-max-session-length">Max Session</label>
+                    <select id="task-max-session-length" name="task-max-session-length" required>
+                        <option value="-1">No Breaks</option>
+                        <option value="30">30 mins</option>
+                        <option value="60">1 Hour</option>
+                        <option value="120" selected>2 Hours (Default)</option>
+                        <option value="180">3 Hours</option>
+                        <option value="240">4 Hours</option>
+                        <option value="300">5 Hours</option>
+                        <option value="360">6 Hours</option>
+                        <option value="420">7 Hours</option>
+                        <option value="480">8 Hours</option>
+                    </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="task-priority">Your Priority (1-10)</label>
+                        <input type="number" id="task-priority" name="task-priority" min="1" max="10" value="5">
+                    </div>
+                    <div class="form-group">
+                        <label for="task-estimated-time">Est. Time (mins)</label>
+                        <input type="number" id="task-estimated-time" name="task-estimated-time" min="5" step="5" value="60">
+                    </div>
+                </div>
+                <div id="task-adjust-message" class="task-adjust-message"></div>
+            </form>
+            <!-- Modal footer with cancel and save buttons -->
+            <div class="modal-footer">
+                <button type="button" class="pill-btn" id="cancel-task-btn">Cancel</button>
+                <button type="submit" form="task-form" class="accent-btn">Save Task</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Event Modal: Form for creating new events -->
+    <div id="add-event-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <!-- Modal header with title and close button -->
+            <div class="modal-header">
+                <h2>New Event</h2>
+                <button class="close-btn" id="close-event-modal">&times;</button>
+            </div>
+            <!-- Event form: Fields for event details -->
+            <form id="event-form" class="modal-form">
+                <!-- Event name input -->
+                <label for="event-name">Event Name *</label>
+                <input type="text" id="event-name" name="event-name" placeholder="e.g., Team Meeting" required>
+                <!-- Date input -->
+                <label for="event-date">Date *</label>
+                <input type="date" id="event-date" name="event-date" required>
+                <!-- Start and end time row -->
+                <div class="form-row">
+                    <div class="form-group"><label for="event-start-time">Start Time *</label><input type="time" id="event-start-time" required></div>
+                    <div class="form-group"><label for="event-end-time">End Time *</label><input type="time" id="event-end-time" required></div>
+                </div>
+                <!-- Location input -->
+                <label for="event-location">Location</label>
+                <input type="text" id="event-location" placeholder="e.g., Room 204">
+                <!-- Status and category row -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="event-status">Status</label>
+                        <select id="event-status"><option value="FIXED">Fixed</option><option value="OPTIONAL">Optional</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="event-category">Category</label>
+                        <select id="event-category">
+                            <option value="School">School</option>
+                            <option value="Work">Work</option>
+                            <option value="Personal">Personal</option>
+                            <option value="Extracurricular">Extracurricular</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="event-reminder-enabled">Reminder</label>
+                        <select id="event-reminder-enabled">
+                            <option value="no" selected>No reminder</option>
+                            <option value="yes">Remind me</option>
+                        </select>
+                    </div>
+                    <div class="form-group hidden" id="event-reminder-days-group">
+                        <label for="event-reminder-every-days">Remind every (days)</label>
+                        <input type="number" id="event-reminder-every-days" min="1" step="1" value="1">
+                    </div>
+                </div>
+            </form>
+            <!-- Modal footer with cancel and save buttons -->
+            <div class="modal-footer">
+                <button type="button" class="pill-btn" id="cancel-event-btn">Cancel</button>
+                <button type="submit" form="event-form" class="accent-btn">Save Event</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings FAB -->
+    <button id="settings-btn" class="floating-settings-btn" title="Settings">⚙️</button>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button class="close-btn" id="close-settings-modal">&times;</button>
+            </div>
+            <form id="settings-form" class="modal-form">
+                <div class="form-group">
+                    <label for="theme-pink-btn">Color Theme</label>
+                    <div class="global-theme-selector">
+                        <button type="button" id="theme-pink-btn" class="pomo-color-btn global-color-btn pink" data-color="pink" title="Pink"></button>
+                        <button type="button" class="pomo-color-btn global-color-btn green" data-color="green" title="Green"></button>
+                        <button type="button" class="pomo-color-btn global-color-btn blue" data-color="blue" title="Blue"></button>
+                        <button type="button" class="pomo-color-btn global-color-btn yellow" data-color="yellow" title="Yellow"></button>
+                        <button type="button" class="pomo-color-btn global-color-btn white" data-color="white" title="White"></button>
+                        <button type="button" class="pomo-color-btn global-color-btn black active" data-color="black" title="Black"></button>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="settings-wake">Wake Up Time (Start)</label>
+                        <input type="time" id="settings-wake" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="settings-sleep">Sleep Time (End)</label>
+                        <input type="time" id="settings-sleep" required>
+                    </div>
+                </div>
+            </form>
+            <div class="modal-footer">
+                <button type="button" class="pill-btn" id="cancel-settings-btn">Cancel</button>
+                <button type="submit" form="settings-form" class="accent-btn">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript files: Main script, API integration, and algorithm -->
+    <script src="script2.js"></script>
+    <!-- Main JavaScript file for UI interactions -->
+</body>
+</html>
