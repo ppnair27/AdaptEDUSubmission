@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: AdaptEDU
+    env: java
+    rootDir: AdaptEDUv0507/SpringBootTest
+    buildCommand: mvn clean install
+    startCommand: java -jar target/*.jar
