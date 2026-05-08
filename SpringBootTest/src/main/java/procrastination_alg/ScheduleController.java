@@ -14,6 +14,23 @@ import java.time.LocalDateTime;
 @CrossOrigin(origins = "*") // Allows the frontend to communicate with the backend
 public class ScheduleController {
 
+    /**
+     * REST controller serving lightweight UI endpoints used by the static
+     * frontend. 
+     * 
+     * 
+     * What it does:
+     * - Persist UI state (tasks/events) to CSV files used by the app and by
+     *    the scheduling engine.
+     * - Provide a thin HTTP endpoint `/api/schedule` that loads fixed events
+     *    from CSV, prepares a scheduling window, and delegates to
+     *    `procrastination_alg.Scheduler` to produce scheduled task blocks.
+     *
+     * The controller intentionally contains only IO and DTO transformation
+     * logic 
+     * All scheduling math is in `Scheduler`.
+     */
+
     private static final String EVENTS_CSV = "src/main/java/procrastination_alg/events.csv";
     private static final String TASKS_CSV = "src/main/java/procrastination_alg/tasks.csv";
 
@@ -24,6 +41,7 @@ public class ScheduleController {
     @SuppressWarnings("unchecked")
     @PostMapping("/state/save-csv")
     public Map<String, String> saveStateToCsv(@RequestBody Map<String, Object> payload) {
+        // Log the incoming keys for debugging the sync flow between UI and server
         System.out.println("State synchronized from UI! Received: " + payload.keySet());
         
         try {
@@ -73,7 +91,10 @@ public class ScheduleController {
         }
         LocalDateTime scheduleEnd = scheduleStart.withHour(endHour).withMinute(0);
         
-        // Run the algorithm
+        // Runs the scheduling. We only prepare inputs here (fixed events
+        // and a start/end window) and pass the path to the tasks CSV. The
+        // returned list contains both the original fixed events and newly
+        // scheduled task blocks marked with status "SCHEDULED_TASK".
         List<Event> fullSchedule = scheduler.generateSchedule(fixedEvents, scheduleStart, scheduleEnd, TASKS_CSV);
         
         System.out.println("\n=== SCHEDULER OUTPUT ===");

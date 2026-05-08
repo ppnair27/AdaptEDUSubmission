@@ -14,6 +14,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+// DTO - Data Transfer Object classes used for mapping between the UI and the server
+*/
+
 class TaskDTO {
     public String name;
     public String category;
@@ -55,9 +59,32 @@ class ScheduleRequest {
 @RestController
 @RequestMapping("/api")
 @CrossOrigin(originPatterns = "*")
+/**
+ * REST controller for lightweight UI operations.
+ *
+ * This controller exposes small helper endpoints used by the static
+ * frontend. It intentionally avoids complex scheduling logic and delegates
+ * heavy computation to classes in `procrastination_alg`, like in `Scheduler` and
+ * `ProcrastinationAlgorithm`. 
+ * 
+ * What is done: 
+ * - Adjusts estimated task duration according to the procrastination algorithm without needing to run the full schedule generation again
+ * - Accepting UI-provided state and persisting it to CSV files for the scheduler
+ * - Bridges UI DTOs and domain objects 
+ */
 public class AdaptEDUController {
 
     @PostMapping("/task-time-adjust")
+    /**
+     * Endpoint: POST /api/task-time-adjust
+     *
+     * What is done: 
+     * Runs the user provided task `estimatedTime` through the
+     * procrastination model and returns the same TaskDTO with an updated
+     * `estimatedTime` for the UI. 
+     * This avoids running the everything again when the user only wants an adjusted
+     * duration estimate.
+     */
     public TaskDTO adjustTaskTime(@RequestBody TaskDTO task) {
         double adjusted = ProcrastinationAlgorithm.getRealisticTimeInMinutes(task.estimatedTime);
         task.estimatedTime = (int) Math.round(adjusted);
@@ -65,6 +92,14 @@ public class AdaptEDUController {
     }
 
     @PostMapping("/schedule")
+    /**
+     * Endpoint: POST /api/schedule 
+     *
+     * This xonverts incoming DTOs into `Event` objects, prepares the
+     * scheduling window, delegates scheduling to `Scheduler`, and maps the
+     * returned events back to DTOs. 
+     * The scheduler reads task input from a CSV file and it makes sure it is updated by calling `/api/state/save-csv` 
+     */
     public List<EventDTO> generateSchedule(@RequestBody ScheduleRequest request) {
         List<Event> fixedEvents = new ArrayList<>();
         if (request.events != null) {
@@ -109,6 +144,11 @@ public class AdaptEDUController {
     }
 
     @PostMapping("/state/save-csv")
+    /**
+     * Endpoint: POST /api/state/save-csv
+     *
+     * Accepts `tasks` and `events` arrays and writes them to CSV files
+     */
     public Map<String, Object> saveStateCsv(@RequestBody CsvSyncRequest request) throws IOException {
         List<TaskDTO> tasks = request.tasks == null ? List.of() : request.tasks;
         List<EventDTO> events = request.events == null ? List.of() : request.events;
@@ -123,6 +163,10 @@ public class AdaptEDUController {
         );
     }
 
+    /**
+     * The method checks common project layouts and returns a Path that can
+     * be used for reading/writing resources during development or runtime.
+     */
     private static Path resolveResourcePath(String fileName) {
         Path inModule = Paths.get("src", "main", "resources", fileName);
         if (Files.exists(inModule.getParent())) return inModule;
@@ -133,6 +177,10 @@ public class AdaptEDUController {
         return inModule;
     }
 
+    /**
+     * Write the tasks list to CSV with a stable header order. Values are
+     * escaped using the `csv(...)` helper to ensure there are commas and quotes 
+     */
     private static void writeTasksCsv(List<TaskDTO> tasks, Path path) throws IOException {
         StringBuilder out = new StringBuilder();
         out.append("name,category,dueDate,userPriority,estimatedTime,completed,description,minutesSpent,archived,archivedAt\n");
@@ -152,6 +200,10 @@ public class AdaptEDUController {
         Files.writeString(path, out.toString(), StandardCharsets.UTF_8);
     }
 
+    /**
+     * Write events to CSV. 
+     * Times should be ISO-8601 strings so readers can use `LocalDateTime.parse`. 
+     */
     private static void writeEventsCsv(List<EventDTO> events, Path path) throws IOException {
         StringBuilder out = new StringBuilder();
         out.append("name,startTime,endTime,location,status,category,reminderEnabled,reminderEveryDays,archived,archivedAt\n");
@@ -171,6 +223,10 @@ public class AdaptEDUController {
         Files.writeString(path, out.toString(), StandardCharsets.UTF_8);
     }
 
+    /**
+     * Escape a single CSV field by wrapping in double quotes and doubling any
+     * internal double quotes. Returns an empty string for null values.
+     */
     private static String csv(String value) {
         if (value == null) return "";
         String escaped = value.replace("\"", "\"\"");

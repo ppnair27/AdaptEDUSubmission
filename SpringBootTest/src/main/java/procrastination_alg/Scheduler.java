@@ -17,8 +17,16 @@ import java.util.LinkedHashMap;
 // Assuming Task, Event, and the procrastination algorithm are in the classpath.
 // You may need to ensure your project is set up to compile/access these files.
 
+/**
+ * Core scheduling engine for the AdaptEDU application.
+ * 
+ * This class is responsible for reading fixed events and flexible tasks, 
+ * identifying free time slots, and using the procrastination algorithm to 
+ * realistically slot tasks into the user's available time.
+ */
 public class Scheduler {
 
+    // The manager that handles holding and sorting the list of tasks
     private TaskManager tasks = new TaskManager();
 
     /**
@@ -47,6 +55,12 @@ public class Scheduler {
         }
     }
 
+    /**
+     * Finds the first available time slot from the list of free slots.
+     * 
+     * @param freeSlots A list of available free time blocks.
+     * @return The start time of the first free slot, or the current time if none are available.
+     */
     public LocalDateTime getFirstFreeTime(List<TimeSlot> freeSlots) {
         for (TimeSlot time : freeSlots) {
             if (time.getDurationInMinutes() > 0) {
@@ -268,6 +282,12 @@ public class Scheduler {
         return freeSlots;
     }
 
+    /**
+     * Parses a CSV file to load existing scheduled events.
+     * 
+     * @param filePath The relative path to the events CSV file.
+     * @return A list of parsed Event objects.
+     */
     public static List<Event> loadEventsFromCSV(String filePath) {
         List<Event> loadedEvents = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
@@ -303,6 +323,12 @@ public class Scheduler {
         return loadedEvents;
     }
 
+    /**
+     * Main method for testing the Scheduler algorithm standalone.
+     * Loads tasks and events from test CSV files and prints the resulting schedule to the console.
+     * 
+     * @param args Command line arguments (unused).
+     */
     public static void main(String[] args) {
         Scheduler scheduler = new Scheduler();
 

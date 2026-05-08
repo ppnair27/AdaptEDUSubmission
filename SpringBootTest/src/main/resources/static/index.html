@@ -1,4 +1,20 @@
 <!DOCTYPE html>
+<!--
+    AdaptEDU — Main single-page HTML layout (index2.html)
+
+    This is the structure for the calendar UI. 
+    The JavaScript in `script2.js` expects specific element IDs and class names
+    (fields, buttons, task/event lists, and the calendar panel). 
+
+    What is used by the JS:
+    - `#calendar` - container for the calendar panel
+    - `#task-list` - task list container in the right-hand panel
+    - `#add-task-btn` - button that opens the Add Task field
+    - `#add-event-btn`  - button that opens the Add Event field
+    - `#detail-popover` - popover used to show task/event details
+    - `#pomodoro-*`  - controls and display for the Pomodoro UI
+    - Modal/field forms: `#task-form`, `#event-form`, `#settings-form`
+-->
 <!-- HTML5 Document Declaration -->
 <html lang="en">
 <!-- Head section: Contains metadata, stylesheets, and fonts -->
@@ -18,7 +34,7 @@
     <!-- Web App Manifest for PWA -->
     <link rel="manifest" href="/manifest.json">
 </head>
-<!-- Body section: Contains the main content of the page -->
+<!-- Body-->
 <body>
     <!-- Main application container -->
     <div class="app-container">
@@ -72,7 +88,7 @@
                 </div>
                 <!-- Spacer for layout -->
                 <div class="sidebar-spacer"></div>
-                <!-- Mini statistics and category distribution -->
+            <!-- status and category distribution -->
                 <div class="mini-stats">
                     <div class="stat-box"><div class="stat-val blue" id="stat-pending">0</div><div class="stat-label">Pending</div></div>
                     <div class="stat-box"><div class="stat-val red" id="stat-overdue">0</div><div class="stat-label">Overdue</div></div>
@@ -135,15 +151,15 @@
 
     <!-- Detail Popover: Modal for displaying task/event details -->
     <div id="detail-popover" class="detail-popover hidden">
-        <!-- Popover header with dot, title, and close button -->
+        <!-- header w dot, title, and close button -->
         <div class="popover-header">
             <div class="popover-dot" id="popover-dot"></div>
             <div class="popover-title" id="popover-title"></div>
             <button class="close-btn" id="close-popover">&times;</button>
         </div>
-        <!-- Popover body: Contains details -->
+        <!-- Details -->
         <div class="popover-body" id="popover-body"></div>
-        <!-- Popover footer: Action buttons -->
+        <!-- Action buttons -->
         <div class="popover-footer" id="popover-footer"></div>
     </div>
 
@@ -185,7 +201,7 @@
     <!-- Add Task Modal: Form for creating new tasks -->
     <div id="add-task-modal" class="modal-overlay hidden">
         <div class="modal-content">
-            <!-- Modal header with title and close button -->
+            <!-- header with title and close button -->
             <div class="modal-header">
                 <h2>New Task</h2>
                 <button class="close-btn" id="close-task-modal">&times;</button>
@@ -243,7 +259,7 @@
                 </div>
                 <div id="task-adjust-message" class="task-adjust-message"></div>
             </form>
-            <!-- Modal footer with cancel and save buttons -->
+            <!--  cancel and save buttons -->
             <div class="modal-footer">
                 <button type="button" class="pill-btn" id="cancel-task-btn">Cancel</button>
                 <button type="submit" form="task-form" class="accent-btn">Save Task</button>
@@ -254,7 +270,7 @@
     <!-- Add Event Modal: Form for creating new events -->
     <div id="add-event-modal" class="modal-overlay hidden">
         <div class="modal-content">
-            <!-- Modal header with title and close button -->
+            <!-- title and close button -->
             <div class="modal-header">
                 <h2>New Event</h2>
                 <button class="close-btn" id="close-event-modal">&times;</button>
@@ -305,7 +321,7 @@
                     </div>
                 </div>
             </form>
-            <!-- Modal footer with cancel and save buttons -->
+            <!-- cancel and save buttons -->
             <div class="modal-footer">
                 <button type="button" class="pill-btn" id="cancel-event-btn">Cancel</button>
                 <button type="submit" form="event-form" class="accent-btn">Save Event</button>

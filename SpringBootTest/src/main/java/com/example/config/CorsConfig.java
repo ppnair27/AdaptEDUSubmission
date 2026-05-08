@@ -1,3 +1,4 @@
+// Source code is decompiled from a .class file using FernFlower decompiler ( Intellij IDEA).
 package com.example.config;
 
 import org.springframework.context.annotation.Bean;
