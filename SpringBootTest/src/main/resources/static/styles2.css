@@ -1,5 +1,6 @@
 /*
  * UI styles for AdaptEDU
+ Google calander was used as a reference point for the UI and Claude was used to assist in building the original framework to match google calander. All coding was done by group members other than any complex css methods that were used to create the initial framework of the calander. 
  */
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 
@@ -13,7 +14,7 @@
 
     --text-primary: #f0f0f5;
     --text-secondary: #a0a0b8;
-    --text-muted:   #606078;
+    --text-muted:   #606078; 
 
     /* Soft Pastels */
     --cat-school:   #82b1ff;   /* pastel blue */
