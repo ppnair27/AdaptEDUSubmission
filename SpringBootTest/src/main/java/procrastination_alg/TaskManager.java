@@ -7,24 +7,43 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Maintains a list of tasks
+ */
 public class TaskManager {
 
     private ArrayList<Task> tasks; // List of tasks
     private ArrayList<Event> events; // List of events
 
+    /**
+     * Initializes the task manager
+     */
     public TaskManager() {
         tasks = new ArrayList<>();
         events = new ArrayList<>();
     }
 
-    // Inserts the list of tasks rom a CSV file
+    /**
+     * Inserts the list of tasks rom a CSV file
+     * 
+     * @param filePath the path to the CSV file
+     */
     public void insertTaskList(String filePath) {
         for (Task task : loadTasksFromCSV(filePath)) {
             tasks.add(task);
         }
     }
 
-    // pulls task list data from the CSV file
+    /**
+     * pulls task list data from the CSV file
+     * Gemini was used to assist with troubleshooting this section of code:
+     * https://gemini.google.com
+     * "Help me integrate the csv cleanly with the algorithm, where the algorithm
+     * calls the csv values and stores them"
+     * 
+     * @param filePath the path to the CSV file
+     * @return
+     */
     private static List<Task> loadTasksFromCSV(String filePath) {
         List<Task> loadedTasks = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
@@ -54,6 +73,12 @@ public class TaskManager {
         return loadedTasks;
     }
 
+    /**
+     * Parses each line of the task csv file
+     * 
+     * @param line a single line of the csv
+     * @return a list of data values
+     */
     public static String[] parseCsvLine(String line) {
         List<String> result = new ArrayList<>();
         StringBuilder current = new StringBuilder();
@@ -79,19 +104,38 @@ public class TaskManager {
     }
 
     // Task methods
+    /**
+     * Adds a task to the task manager
+     * 
+     * @param task the new task
+     */
     public void addTask(Task task) {
         tasks.add(task);
     }
 
+    /**
+     * removes a task from the task manager
+     * 
+     * @param task the task to remove
+     */
     public void removeTask(Task task) {
         tasks.remove(task);
     }
 
+    /**
+     * Returns the list of tasks held by the task manager
+     * 
+     * @return the list of tasks
+     */
     public List<Task> getTasks() {
         return tasks;
     }
 
     // Event methods
+    /**
+     * 
+     * @param event
+     */
     public void addEvent(Event event) {
         events.add(event);
     }

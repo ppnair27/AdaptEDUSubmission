@@ -18,11 +18,7 @@ import java.util.LinkedHashMap;
 // You may need to ensure your project is set up to compile/access these files.
 
 /**
- * Core scheduling engine for the AdaptEDU application.
- * 
- * This class is responsible for reading fixed events and flexible tasks, 
- * identifying free time slots, and using the procrastination algorithm to 
- * realistically slot tasks into the user's available time.
+ * sorts the event and task data into an ordered calendar list
  */
 public class Scheduler {
 
@@ -36,16 +32,30 @@ public class Scheduler {
         LocalDateTime start;
         LocalDateTime end;
 
+        /**
+         * Initializes the time slot
+         * 
+         * @param start The start date and time
+         * @param end   The end date and time
+         */
         TimeSlot(LocalDateTime start, LocalDateTime end) {
             this.start = start;
             this.end = end;
         }
 
+        /**
+         * Returns the duration of the slot
+         * 
+         * @return The duration in minutes
+         */
         public long getDurationInMinutes() {
             return Duration.between(start, end).toMinutes();
         }
 
         @Override
+        /**
+         * Returns the time slot as a string
+         */
         public String toString() {
             return "TimeSlot{" +
                     "start=" + start +
@@ -56,10 +66,10 @@ public class Scheduler {
     }
 
     /**
-     * Finds the first available time slot from the list of free slots.
+     * Finds the first free time from the list of free slots
      * 
-     * @param freeSlots A list of available free time blocks.
-     * @return The start time of the first free slot, or the current time if none are available.
+     * @param freeSlots A list of timeslots representing free periods
+     * @return The first available time slot.
      */
     public LocalDateTime getFirstFreeTime(List<TimeSlot> freeSlots) {
         for (TimeSlot time : freeSlots) {
@@ -73,16 +83,15 @@ public class Scheduler {
     /**
      * Generates a schedule by placing tasks into the free time between fixed
      * events.
-     *
+     * 
      * @param fixedEvents     A list of events that are already scheduled and cannot
      *                        be moved.
-     * @param tasksToSchedule A list of tasks that need to be scheduled.
      * @param scheduleStart   The start of the time window for scheduling (e.g.,
      *                        beginning of the day).
      * @param scheduleEnd     The end of the time window for scheduling (e.g., end
      *                        of the day).
-     * @return A list of Event objects, including the original fixed events and new
-     *         events for the scheduled tasks.
+     * @param filePath        The csv filepath to locate task data
+     * @return A list of events representing the recommended schedule.
      */
     public List<Event> generateSchedule(List<Event> fixedEvents,
             LocalDateTime scheduleStart, LocalDateTime scheduleEnd, String filePath) {
@@ -102,15 +111,18 @@ public class Scheduler {
 
         // 3. Fit tasks into free slots
 
-        tasks.procrastinate();
+        tasks.procrastinate(); // Adjust estimated time for a more realistic duration using the procrastination
+                               // model
         int sessionInDay = 0;
-        while (tasks.getTasks().size() > 0) {
+        while (tasks.getTasks().size() > 0) { // While there are tasks to put into the calendar, keep running the
+                                              // program
             LocalDateTime time = getFirstFreeTime(freeSlots);
             tasks.sortByUrgency(time);
 
             Task task = tasks.getTasks().get(0);
             System.out.println(sessionInDay);
-            if (task.getPriorityScore() < -15 + 4 * sessionInDay) {
+            if (task.getPriorityScore() < -15 + 4 * sessionInDay) { // If the priority is low and there have already
+                                                                    // been many tasks, give the user a break
                 task = new Task("Break", "BREAK", LocalDateTime.MAX, 0, 120, false, 120, "Break");
                 sessionInDay = 0;
             }
@@ -124,7 +136,8 @@ public class Scheduler {
 
             // Find slots for the task, splitting if necessary
 
-            for (TimeSlot slot : freeSlots) {
+            for (TimeSlot slot : freeSlots) { // Given each task, go through the freeslots until you find a suitable
+                                              // time
 
                 long slotDuration = slot.getDurationInMinutes();
                 // Makes sure it accounts for used up free slots
@@ -145,7 +158,22 @@ public class Scheduler {
                             "Name of old: " + scheduledTaskEvents.get(scheduledTaskEvents.size() - 1).getName());
                     if (taskStart.isEqual(scheduledTaskEvents.get(scheduledTaskEvents.size() - 1).getEndTime())
                             && task.getName()
-                                    .equals(scheduledTaskEvents.get(scheduledTaskEvents.size() - 1).getName())) {
+                                    .equals(scheduledTaskEvents.get(scheduledTaskEvents.size() - 1).getName())) { // If
+                                                                                                                  // two
+                                                                                                                  // sessions
+                                                                                                                  // of
+                                                                                                                  // the
+                                                                                                                  // same
+                                                                                                                  // task
+                                                                                                                  // are
+                                                                                                                  // in
+                                                                                                                  // a
+                                                                                                                  // row,
+                                                                                                                  // give
+                                                                                                                  // the
+                                                                                                                  // user
+                                                                                                                  // a
+                                                                                                                  // break
                         System.out.println("Break 10 scheduled");
                         task = new Task("Break 10", "BREAK", LocalDateTime.MAX, 0, 10, false, 10, "Break");
                         sessionInDay = 0;
@@ -206,7 +234,8 @@ public class Scheduler {
         fullSchedule.addAll(scheduledTaskEvents);
         fullSchedule.sort(Comparator.comparing(Event::getStartTime, Comparator.nullsLast(Comparator.naturalOrder())));
 
-        if (!remainingTimes.isEmpty()) {
+        if (!remainingTimes.isEmpty()) { // Catch any potential errors in the process of sorting - Mainly used in
+                                         // testing
             System.out.println("\nWarning: Could not fully schedule all tasks. Unscheduled remaining time:");
             for (Map.Entry<Task, Double> entry : remainingTimes.entrySet()) {
                 System.out.printf("- %s (Remaining: %.0f min)\n", entry.getKey().getName(), entry.getValue());
@@ -219,24 +248,33 @@ public class Scheduler {
     /**
      * Identifies blocks of free time between a given start and end time, avoiding a
      * list of busy events.
+     * 
+     * @param events      A list of events from the event class
+     * @param windowStart The starting time of free periods
+     * @param windowEnd   The ending time of free periods
+     * @return A list of time slots representing free periods
      */
     private List<TimeSlot> findFreeTimeSlots(List<Event> events, LocalDateTime windowStart, LocalDateTime windowEnd) {
         List<TimeSlot> freeSlots = new ArrayList<>();
 
-        // Filter events to be within our scheduling window and sort them
-        // THIS IS THE SOURCE OF ISSUES - filtering out too many events - causing
-        // overlaps
+        // Filter events to be within our scheduling window
         List<Event> sortedEvents = events.stream()
                 .filter(e -> e.getStartTime() != null && e.getEndTime() != null)
                 .collect(Collectors.toList());
 
-        LocalDateTime currentTime = LocalDateTime.now().plusDays(1).withHour(8);
+        LocalDateTime currentTime = LocalDateTime.now().plusDays(1).withHour(windowStart.getHour()); // Sets the
+                                                                                                     // "current time"
+                                                                                                     // for free time
+                                                                                                     // calculation to
+                                                                                                     // be at the start
+                                                                                                     // of the next day
         sortedEvents.sort((t1, t2) -> t1.getStartTime().compareTo(t2.getStartTime()));
 
-        for (Event event : sortedEvents) {
+        for (Event event : sortedEvents) { // For each viable event, reevaluate if there are any suitable free periods
             System.out.println("event: " + event + " ; " + currentTime);
 
-            while (currentTime.isBefore(event.getEndTime())) {
+            while (currentTime.isBefore(event.getEndTime())) { // While there is still time before the end of the event,
+                                                               // keep looking for free slots
                 LocalDateTime setTimeWindow = currentTime.withHour(windowEnd.getHour());
                 LocalDateTime setTimeEvent = event.getStartTime();
                 LocalDateTime finalTime = event.getEndTime();
@@ -266,27 +304,28 @@ public class Scheduler {
             }
         }
 
-        // Add a final 7 free slots
+        // Add a final 71 free slots to allow for task overflow
         if (currentTime.getHour() < windowEnd.getHour()) {
             freeSlots.add(new TimeSlot(currentTime, currentTime.withHour(windowEnd.getHour())));
-            System.out.println("Freeslot 1: " + currentTime + " --- " + currentTime.withHour(windowEnd.getHour()));
         }
-        currentTime = currentTime.plusHours(windowEnd.getHour() - currentTime.getHour() + 10);
+        currentTime = currentTime.plusDays(1).withHour(windowStart.getHour());
         for (int i = 1; i <= 70; i++) {
-            // System.out.println("Current Time: " + currentTime);
-            currentTime = currentTime.plusHours(24);
-            freeSlots.add(new TimeSlot(currentTime, currentTime.plusHours(14)));
-            System.out.println("Freeslot: " + currentTime + " --- " + currentTime.plusHours(14));
+            freeSlots.add(new TimeSlot(currentTime, currentTime.withHour(windowEnd.getHour())));
+            currentTime = currentTime.plusDays(1);
         }
 
         return freeSlots;
     }
 
     /**
-     * Parses a CSV file to load existing scheduled events.
+     * Loads a list of events from a CSV file.
+     * Gemini was used to assist with troubleshooting this section of code:
+     * https://gemini.google.com
+     * "Help me integrate the csv cleanly with the algorithm, where the algorithm
+     * calls the csv values and stores them"
      * 
-     * @param filePath The relative path to the events CSV file.
-     * @return A list of parsed Event objects.
+     * @param filePath The file path to access the CSV file
+     * @return
      */
     public static List<Event> loadEventsFromCSV(String filePath) {
         List<Event> loadedEvents = new ArrayList<>();
@@ -323,12 +362,7 @@ public class Scheduler {
         return loadedEvents;
     }
 
-    /**
-     * Main method for testing the Scheduler algorithm standalone.
-     * Loads tasks and events from test CSV files and prints the resulting schedule to the console.
-     * 
-     * @param args Command line arguments (unused).
-     */
+    // Code used for running the algorithm separately from the GUI
     public static void main(String[] args) {
         Scheduler scheduler = new Scheduler();
 
