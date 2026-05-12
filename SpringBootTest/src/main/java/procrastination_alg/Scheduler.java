@@ -84,13 +84,13 @@ public class Scheduler {
      * Generates a schedule by placing tasks into the free time between fixed
      * events.
      * 
-     * @param fixedEvents     A list of events that are already scheduled and cannot
-     *                        be moved.
-     * @param scheduleStart   The start of the time window for scheduling (e.g.,
-     *                        beginning of the day).
-     * @param scheduleEnd     The end of the time window for scheduling (e.g., end
-     *                        of the day).
-     * @param filePath        The csv filepath to locate task data
+     * @param fixedEvents   A list of events that are already scheduled and cannot
+     *                      be moved.
+     * @param scheduleStart The start of the time window for scheduling (e.g.,
+     *                      beginning of the day).
+     * @param scheduleEnd   The end of the time window for scheduling (e.g., end
+     *                      of the day).
+     * @param filePath      The csv filepath to locate task data
      * @return A list of events representing the recommended schedule.
      */
     public List<Event> generateSchedule(List<Event> fixedEvents,
@@ -157,23 +157,23 @@ public class Scheduler {
                     System.out.println(
                             "Name of old: " + scheduledTaskEvents.get(scheduledTaskEvents.size() - 1).getName());
                     if (taskStart.isEqual(scheduledTaskEvents.get(scheduledTaskEvents.size() - 1).getEndTime())
-                            && task.getName()
-                                    .equals(scheduledTaskEvents.get(scheduledTaskEvents.size() - 1).getName())) { // If
-                                                                                                                  // two
-                                                                                                                  // sessions
-                                                                                                                  // of
-                                                                                                                  // the
-                                                                                                                  // same
-                                                                                                                  // task
-                                                                                                                  // are
-                                                                                                                  // in
-                                                                                                                  // a
-                                                                                                                  // row,
-                                                                                                                  // give
-                                                                                                                  // the
-                                                                                                                  // user
-                                                                                                                  // a
-                                                                                                                  // break
+                            && task.getName().equals(scheduledTaskEvents.get(scheduledTaskEvents.size() - 1).getName())
+                            && !task.getCategory().equals("BREAK")) { // If
+                                                                      // two
+                                                                      // sessions
+                                                                      // of
+                                                                      // the
+                                                                      // same
+                                                                      // task
+                                                                      // are
+                                                                      // in
+                                                                      // a
+                                                                      // row,
+                                                                      // give
+                                                                      // the
+                                                                      // user
+                                                                      // a
+                                                                      // break
                         System.out.println("Break 10 scheduled");
                         task = new Task("Break 10", "BREAK", LocalDateTime.MAX, 0, 10, false, 10, "Break");
                         sessionInDay = 0;
@@ -262,12 +262,12 @@ public class Scheduler {
                 .filter(e -> e.getStartTime() != null && e.getEndTime() != null)
                 .collect(Collectors.toList());
 
-        LocalDateTime currentTime = LocalDateTime.now().plusDays(1).withHour(windowStart.getHour()); // Sets the
-                                                                                                     // "current time"
-                                                                                                     // for free time
-                                                                                                     // calculation to
-                                                                                                     // be at the start
-                                                                                                     // of the next day
+        LocalDateTime currentTime = LocalDateTime.now(); // Sets the
+                                                         // "current time"
+                                                         // for free time
+                                                         // calculation to
+                                                         // be at the start
+                                                         // of the next day
         sortedEvents.sort((t1, t2) -> t1.getStartTime().compareTo(t2.getStartTime()));
 
         for (Event event : sortedEvents) { // For each viable event, reevaluate if there are any suitable free periods
@@ -275,24 +275,28 @@ public class Scheduler {
 
             while (currentTime.isBefore(event.getEndTime())) { // While there is still time before the end of the event,
                                                                // keep looking for free slots
-                LocalDateTime setTimeWindow = currentTime.withHour(windowEnd.getHour());
+                LocalDateTime setTimeWindow = currentTime.withHour(windowEnd.getHour()).withMinute(0).withSecond(0)
+                        .withNano(0);
                 LocalDateTime setTimeEvent = event.getStartTime();
                 LocalDateTime finalTime = event.getEndTime();
                 if (setTimeEvent.getHour() < windowStart.getHour()) {
-                    setTimeEvent = setTimeEvent.minusDays(1).withHour(windowEnd.getHour());
+                    setTimeEvent = setTimeEvent.minusDays(1).withHour(windowEnd.getHour()).withMinute(0).withSecond(0)
+                            .withNano(0);
                 } else if (setTimeEvent.getHour() > windowEnd.getHour()) {
-                    setTimeEvent = setTimeEvent.withHour(windowEnd.getHour());
+                    setTimeEvent = setTimeEvent.withHour(windowEnd.getHour()).withMinute(0).withSecond(0).withNano(0);
                 }
                 if (finalTime.getHour() < windowStart.getHour()) {
-                    finalTime = finalTime.withHour(windowStart.getHour());
+                    finalTime = finalTime.withHour(windowStart.getHour()).withMinute(0).withSecond(0).withNano(0);
                 } else if (finalTime.getHour() > windowEnd.getHour()) {
-                    finalTime = finalTime.plusDays(1).withHour(windowStart.getHour());
+                    finalTime = finalTime.plusDays(1).withHour(windowStart.getHour()).withMinute(0).withSecond(0)
+                            .withNano(0);
                 }
                 if (setTimeWindow.isBefore(setTimeEvent)) {
                     freeSlots.add(new TimeSlot(currentTime, setTimeWindow));
                     System.out
                             .println("Freeslot: " + event.getName() + " --- " + currentTime + " --- " + setTimeWindow);
-                    currentTime = currentTime.plusDays(1).withHour(windowStart.getHour());
+                    currentTime = currentTime.plusDays(1).withHour(windowStart.getHour()).withMinute(0).withSecond(0)
+                            .withNano(0);
                     if (currentTime.isAfter(event.getStartTime())) {
                         currentTime = finalTime;
                     }
@@ -306,11 +310,13 @@ public class Scheduler {
 
         // Add a final 71 free slots to allow for task overflow
         if (currentTime.getHour() < windowEnd.getHour()) {
-            freeSlots.add(new TimeSlot(currentTime, currentTime.withHour(windowEnd.getHour())));
+            freeSlots.add(new TimeSlot(currentTime,
+                    currentTime.withHour(windowEnd.getHour()).withMinute(0).withSecond(0).withNano(0)));
         }
-        currentTime = currentTime.plusDays(1).withHour(windowStart.getHour());
+        currentTime = currentTime.plusDays(1).withHour(windowStart.getHour()).withMinute(0).withSecond(0).withNano(0);
         for (int i = 1; i <= 70; i++) {
-            freeSlots.add(new TimeSlot(currentTime, currentTime.withHour(windowEnd.getHour())));
+            freeSlots.add(new TimeSlot(currentTime,
+                    currentTime.withHour(windowEnd.getHour()).withMinute(0).withSecond(0).withNano(0)));
             currentTime = currentTime.plusDays(1);
         }
 
@@ -365,21 +371,23 @@ public class Scheduler {
     // Code used for running the algorithm separately from the GUI
     public static void main(String[] args) {
         Scheduler scheduler = new Scheduler();
+        int start = 8;
+        int end = 22;
 
         // --- 1. Load Data From CSV ---
-        List<Event> fixedEvents = loadEventsFromCSV("src/main/java/procrastination_alg/events.csv");
+        List<Event> fixedEvents = loadEventsFromCSV("SpringBootTest/src/main/java/procrastination_alg/events.csv");
         // --- 2. Define the scheduling window ---
         // The test data in the CSV spans from May 19 to May 25, 2024.
         // We test the schedule for a specific day from the dataset (e.g., Monday, May
         // 20)
-        LocalDate testDate = LocalDate.of(2024, 5, 20);
-        LocalDateTime scheduleStart = testDate.atTime(8, 0);
-        LocalDateTime scheduleEnd = testDate.atTime(22, 0);
+        LocalDate testDate = LocalDate.now();
+        LocalDateTime scheduleStart = testDate.atTime(start, 0);
+        LocalDateTime scheduleEnd = testDate.atTime(end, 0);
 
         // --- 3. Generate and print the schedule ---
         System.out.println("Generating Schedule for " + testDate + "...\n");
         List<Event> fullSchedule = scheduler.generateSchedule(fixedEvents, scheduleStart, scheduleEnd,
-                "src/main/java/procrastination_alg/tasks.csv");
+                "SpringBootTest/src/main/java/procrastination_alg/tasks.csv");
 
         System.out.println("--- Final Daily Schedule ---");
         DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("hh:mm a");
@@ -427,7 +435,7 @@ public class Scheduler {
                 overDue = true;
                 System.out.println("!!! PREDICTED OVERDUE !!!");
             }
-            if (e.getStartTime().getHour() < 8 || e.getEndTime().getHour() > 22) {
+            if (e.getStartTime().getHour() < start || e.getEndTime().getHour() > end) {
                 sleepLoss = true;
                 System.out.println("~~~ PREDICTED LOSS OF SLEEP ~~~ " + e.getStartTime().getHour() + " - "
                         + e.getEndTime().getHour());
