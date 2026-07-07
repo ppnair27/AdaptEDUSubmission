@@ -177,11 +177,18 @@ public class SupabaseService {
     private String formatTimestamp(String rawDate) {
         if (rawDate == null || rawDate.isBlank()) return null;
         String fixed = rawDate.trim();
-        // If it's missing seconds (e.g., 2026-07-06T08:00)
+        
+        // If it's missing seconds (e.g., 2026-07-06T08:00) -> 16 chars
         if (fixed.length() == 16) {
             fixed += ":00";
         }
-        // If it doesn't have a timezone Z
+        
+        // If it already has seconds but is missing the timezone Z -> 19 chars
+        if (fixed.length() == 19 && !fixed.endsWith("Z")) {
+            fixed += "Z";
+        }
+        
+        // Final fallback safety check
         if (!fixed.endsWith("Z")) {
             fixed += "Z";
         }
