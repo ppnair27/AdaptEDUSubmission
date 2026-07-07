@@ -1263,7 +1263,7 @@ function queueCsvSync(payload, fetchSchedule) {
 
 async function syncStateToCsv(payload, fetchSchedule) {
     try {
-        const response = await fetch(buildApiUrl('https://adaptedu-iy8o.onrender.com/'), {
+        const response = await fetch(buildApiUrl('https://adaptedu-iy8o.onrender.com/api/state/save-csv'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
