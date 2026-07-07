@@ -13,11 +13,14 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @Service
 public class SupabaseService {
@@ -28,13 +31,15 @@ public class SupabaseService {
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Value("${supabase.url:}")
+    @Value("${SUPABASE_URL}")
     private String supabaseUrl;
 
-    @Value("${supabase.service-role-key:}")
+    @Value("${SUPABASE_SERVICE_ROLE_KEY}")
     private String serviceRoleKey;
 
-    @Value("${supabase.anon-key:}")
+    // You actually don't need the anonKey in the backend if you are using the service role!
+    // But if you want to keep it:
+    @Value("${SUPABASE_ANON_KEY:}")
     private String anonKey;
 
     @Value("${supabase.tasks-table:tasks}")
@@ -56,7 +61,7 @@ public class SupabaseService {
         for (Map<String, Object> row : rows) {
             out.append(csv(stringValue(row, "name"))).append(',')
                     .append(csv(stringValue(row, "category"))).append(',')
-                    .append(csv(stringValue(row, "due_date", "dueDate"))).append(',')
+                    .append(csv(csvTimestamp(stringValue(row, "due_date", "dueDate")))).append(',')
                     .append(intValue(row, 5, "user_priority", "userPriority")).append(',')
                     .append(intValue(row, 60, "estimated_time", "estimatedTime")).append(',')
                     .append(booleanValue(row, false, "completed")).append(',')
@@ -74,8 +79,8 @@ public class SupabaseService {
         StringBuilder out = new StringBuilder();
         out.append("name,startTime,endTime,duration,location,travelTime,status,category,description\n");
         for (Map<String, Object> row : rows) {
-            String startTime = stringValue(row, "start_time", "startTime");
-            String endTime = stringValue(row, "end_time", "endTime");
+            String startTime = csvTimestamp(stringValue(row, "start_time", "startTime"));
+            String endTime = csvTimestamp(stringValue(row, "end_time", "endTime"));
             out.append(csv(stringValue(row, "name"))).append(',')
                     .append(startTime).append(',')
                     .append(endTime).append(',')
@@ -110,7 +115,11 @@ public class SupabaseService {
     }
 
     private void deleteAllRows(String table) throws IOException, InterruptedException {
-        HttpRequest request = baseRequest(table)
+        URI uri = URI.create(supabaseUrl.replaceAll("/+$", "") + "/rest/v1/" + table + "?id=not.is.null");
+        String key = apiKey();
+        HttpRequest request = HttpRequest.newBuilder(uri)
+                .header("apikey", key)
+                .header("Authorization", "Bearer " + key)
                 .DELETE()
                 .build();
 
@@ -164,13 +173,29 @@ public class SupabaseService {
         return anonKey == null ? "" : anonKey;
     }
 
+    // --- ADD THIS HELPER METHOD ---
+    private String formatTimestamp(String rawDate) {
+        if (rawDate == null || rawDate.isBlank()) return null;
+        String fixed = rawDate.trim();
+        // If it's missing seconds (e.g., 2026-07-06T08:00)
+        if (fixed.length() == 16) {
+            fixed += ":00";
+        }
+        // If it doesn't have a timezone Z
+        if (!fixed.endsWith("Z")) {
+            fixed += "Z";
+        }
+        return fixed;
+    }
+
     private List<Map<String, Object>> sanitizeTasks(List<Map<String, Object>> tasks) {
         List<Map<String, Object>> sanitized = new ArrayList<>();
         for (Map<String, Object> task : tasks) {
             Map<String, Object> row = new HashMap<>();
             row.put("name", stringValue(task, "name"));
             row.put("category", stringValue(task, "category"));
-            row.put("due_date", stringValue(task, "dueDate", "due_date"));
+            // FIX: Format the due_date properly for Supabase timestamptz before uploading
+            row.put("due_date", formatTimestamp(stringValue(task, "dueDate", "due_date")));
             row.put("user_priority", intValue(task, 5, "userPriority", "user_priority"));
             row.put("estimated_time", intValue(task, 60, "estimatedTime", "estimated_time"));
             row.put("completed", booleanValue(task, false, "completed"));
@@ -191,8 +216,9 @@ public class SupabaseService {
             String endTime = stringValue(event, "endTime", "end_time");
             Map<String, Object> row = new HashMap<>();
             row.put("name", stringValue(event, "name"));
-            row.put("start_time", startTime);
-            row.put("end_time", endTime);
+            // FIX: Format the start/end times properly for Supabase timestamptz before uploading
+            row.put("start_time", formatTimestamp(startTime));
+            row.put("end_time", formatTimestamp(endTime));
             row.put("duration", intValue(event, calculateDurationMinutes(startTime, endTime, 60), "duration"));
             row.put("location", stringValue(event, "location"));
             row.put("travel_time", intValue(event, 0, "travelTime", "travel_time"));
@@ -226,6 +252,31 @@ public class SupabaseService {
     private String stringValue(Object value, String fallback) {
         String result = stringValue(value);
         return result.isBlank() ? fallback : result;
+    }
+
+    private String csvTimestamp(String rawDate) {
+        if (rawDate == null || rawDate.isBlank()) {
+            return "";
+        }
+
+        String trimmed = rawDate.trim();
+        try {
+            Instant instant = Instant.parse(trimmed);
+            return instant.atZone(ZoneId.systemDefault()).toLocalDateTime().toString();
+        } catch (Exception ignored) {
+        }
+
+        try {
+            OffsetDateTime offsetDateTime = OffsetDateTime.parse(trimmed);
+            return offsetDateTime.toLocalDateTime().toString();
+        } catch (Exception ignored) {
+        }
+
+        try {
+            return LocalDateTime.parse(trimmed).toString();
+        } catch (Exception ignored) {
+            return trimmed;
+        }
     }
 
     private String stringValue(Map<String, Object> row, String... keys) {
