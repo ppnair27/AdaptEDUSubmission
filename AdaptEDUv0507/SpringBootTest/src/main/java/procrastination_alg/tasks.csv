@@ -1,1 +1,6 @@
-name,category,dueDate,userPriority,estimatedTime,completed,maxSessionLength,description
+id,name,category,dueDate,userPriority,estimatedTime,completed,maxSessionLength,description
+1,Math Homework,school,2026-07-06T17:00:00,8,90,FALSE,120,Chapter 5 exercises
+2,Physics Lab Report,school,2026-07-08T12:00:00,6,60,FALSE,120,Include all graphs
+3,Team Presentation,work,2026-07-09T15:00:00,9,120,FALSE,120,Slides + script
+4,Journal Entry,personal,2026-07-07T20:00:00,4,20,FALSE,120,
+5,Overdue Assignment,school,2026-07-05T12:00:00,8,45,FALSE,120,Submit on portal

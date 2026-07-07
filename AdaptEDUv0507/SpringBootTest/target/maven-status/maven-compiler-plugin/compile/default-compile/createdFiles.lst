@@ -1,7 +1,9 @@
 procrastination_alg/ProcrastinationAlgorithm.class
+procrastination_alg/SupabaseService$1.class
 procrastination_alg/Task.class
 procrastination_alg/TaskManager.class
 procrastination_alg/Scheduler.class
+procrastination_alg/SupabaseService.class
 com/example/config/CorsConfig$1.class
 procrastination_alg/Event.class
 procrastination_alg/Scheduler$TimeSlot.class
