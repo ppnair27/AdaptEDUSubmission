@@ -33,19 +33,19 @@ public class ScheduleController {
             List<Map<String, Object>> tasks = (List<Map<String, Object>>) payload.getOrDefault("tasks", List.of());
             List<Map<String, Object>> events = (List<Map<String, Object>>) payload.getOrDefault("events", List.of());
 
+            System.out.println("📦 RECEIVED TASKS COUNT: " + tasks.size());
+            System.out.println("📦 RECEIVED EVENTS COUNT: " + events.size());
+
             supabaseService.saveState(tasks, events);
         } catch (Exception e) {
+            System.out.println("🚨 CRITICAL SYNC ERROR: " + e.getMessage());
             e.printStackTrace();
+            
             Map<String, String> errorResponse = new HashMap<>();
             errorResponse.put("status", "error");
             errorResponse.put("message", "Failed to save to Supabase: " + e.getMessage());
             return errorResponse;
         }
-
-        Map<String, String> response = new HashMap<>();
-        response.put("status", "success");
-        return response;
-    }
     
     /**
      * Endpoint to fetch the fully scheduled blocks.
