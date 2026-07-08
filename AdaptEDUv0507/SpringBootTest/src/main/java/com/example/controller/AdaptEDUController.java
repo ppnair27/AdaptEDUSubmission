@@ -108,20 +108,20 @@ public class AdaptEDUController {
         }).collect(Collectors.toList());
     }
 
-    @PostMapping("/state/save-csv")
-    public Map<String, Object> saveStateCsv(@RequestBody CsvSyncRequest request) throws IOException {
-        List<TaskDTO> tasks = request.tasks == null ? List.of() : request.tasks;
-        List<EventDTO> events = request.events == null ? List.of() : request.events;
+    //@PostMapping("/state/save-csv")
+    //public Map<String, Object> saveStateCsv(@RequestBody CsvSyncRequest request) throws IOException {
+      //  List<TaskDTO> tasks = request.tasks == null ? List.of() : request.tasks;
+       // List<EventDTO> events = request.events == null ? List.of() : request.events;
 
-        writeTasksCsv(tasks, resolveResourcePath("tasks.csv"));
-        writeEventsCsv(events, resolveResourcePath("events.csv"));
+       // writeTasksCsv(tasks, resolveResourcePath("tasks.csv"));
+       // writeEventsCsv(events, resolveResourcePath("events.csv"));
 
-        return Map.of(
-                "status", "ok",
-                "tasksSaved", tasks.size(),
-                "eventsSaved", events.size()
-        );
-    }
+       // return Map.of(
+        //        "status", "ok",
+          //      "tasksSaved", tasks.size(),
+            //    "eventsSaved", events.size()
+  //      );
+ //   }
 
     private static Path resolveResourcePath(String fileName) {
         Path inModule = Paths.get("src", "main", "resources", fileName);
