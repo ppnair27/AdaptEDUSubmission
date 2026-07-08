@@ -1,4 +1,6 @@
 package com.example.controller;
+import procrastination_alg.SupabaseService;
+import procrastination_alg.Event;
 
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpStatus;
