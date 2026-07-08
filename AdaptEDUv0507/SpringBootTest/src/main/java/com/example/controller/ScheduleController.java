@@ -5,6 +5,9 @@ import procrastination_alg.Event;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.beans.factory.annotation.Autowired;
+import procrastination_alg.SupabaseService; // Import the service from its original package
+import procrastination_alg.Event;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
@@ -18,6 +21,7 @@ public class ScheduleController {
 
     private final SupabaseService supabaseService;
 
+    @Autowired
     public ScheduleController(SupabaseService supabaseService) {
         this.supabaseService = supabaseService;
     }
