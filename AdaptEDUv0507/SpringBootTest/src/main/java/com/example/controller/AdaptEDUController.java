@@ -1,13 +1,10 @@
 package com.example.controller;
 
 import org.springframework.web.bind.annotation.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import procrastination_alg.*;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +12,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 class TaskDTO {
+    public String id; 
     public String name;
     public String category;
     public String dueDate;
@@ -25,9 +23,11 @@ class TaskDTO {
     public int minutesSpent;
     public boolean archived;
     public Long archivedAt;
+    public int maxSessionLength; 
 }
 
 class EventDTO {
+    public String id; 
     public String name;
     public String startTime;
     public String endTime;
@@ -54,8 +54,15 @@ class ScheduleRequest {
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(originPatterns = "*")
+@CrossOrigin(origins = "*")
 public class AdaptEDUController {
+
+    private final SupabaseService supabaseService;
+
+    @Autowired
+    public AdaptEDUController(SupabaseService supabaseService) {
+        this.supabaseService = supabaseService;
+    }
 
     @PostMapping("/task-time-adjust")
     public TaskDTO adjustTaskTime(@RequestBody TaskDTO task) {
@@ -66,12 +73,53 @@ public class AdaptEDUController {
 
     @PostMapping("/schedule")
     public List<EventDTO> generateSchedule(@RequestBody ScheduleRequest request) {
+        // 1. AUTOMATICALLY SAVE TO SUPABASE EVERY TIME THE UI UPDATES
+        try {
+            List<Map<String, Object>> taskMaps = new ArrayList<>();
+            if (request.tasks != null) {
+                for (TaskDTO t : request.tasks) {
+                    Map<String, Object> map = new java.util.HashMap<>();
+                    map.put("id", t.id);
+                    map.put("name", t.name != null ? t.name : "");
+                    map.put("category", t.category != null ? t.category : "");
+                    map.put("dueDate", t.dueDate != null ? t.dueDate : "");
+                    map.put("userPriority", t.userPriority);
+                    map.put("estimatedTime", t.estimatedTime);
+                    map.put("completed", t.completed);
+                    map.put("max_session_length", t.maxSessionLength);
+                    map.put("description", t.description != null ? t.description : "");
+                    taskMaps.add(map);
+                }
+            }
+
+            List<Map<String, Object>> eventMaps = new ArrayList<>();
+            if (request.events != null) {
+                for (EventDTO e : request.events) {
+                    Map<String, Object> map = new java.util.HashMap<>();
+                    map.put("id", e.id);
+                    map.put("name", e.name != null ? e.name : "");
+                    map.put("startTime", e.startTime != null ? e.startTime : "");
+                    map.put("endTime", e.endTime != null ? e.endTime : "");
+                    map.put("location", e.location != null ? e.location : "");
+                    map.put("status", e.status != null ? e.status : "FIXED");
+                    map.put("category", e.category != null ? e.category : "");
+                    eventMaps.add(map);
+                }
+            }
+
+            System.out.println("🔄 AUTO-SYNCING TO SUPABASE BEFORE SCHEDULING...");
+            supabaseService.saveState(taskMaps, eventMaps);
+            System.out.println("🚀 CLOUD SYNC SUCCESS: Data written to Supabase tables!");
+
+        } catch (Exception e) {
+            System.out.println("🚨 AUTO-SYNC ERROR (Check your API Keys!): " + e.getMessage());
+        }
+
+        // 2. RUN THE EXISTING SCHEDULER ALGORITHM
         List<Event> fixedEvents = new ArrayList<>();
         if (request.events != null) {
             for (EventDTO dto : request.events) {
-                if (dto.archived) {
-                    continue;
-                }
+                if (dto.archived || dto.startTime == null || dto.endTime == null) continue;
                 try {
                     Event event = new Event(
                             dto.name,
@@ -79,22 +127,28 @@ public class AdaptEDUController {
                             LocalDateTime.parse(dto.startTime),
                             LocalDateTime.parse(dto.endTime)
                     );
-                    if (dto.location != null) event.setLocation(dto.location);
-                    if (dto.category != null) event.setCategory(dto.category);
-                    if (dto.status != null) event.setStatus(dto.status);
                     fixedEvents.add(event);
                 } catch (Exception e) {
-                    System.err.println("Skipping invalid event: " + dto.name);
+                    System.err.println("Skipping invalid event formatting: " + dto.name);
                 }
             }
         }
 
-        LocalDateTime start = LocalDateTime.parse(request.scheduleStart);
-        LocalDateTime end = LocalDateTime.parse(request.scheduleEnd);
+        LocalDateTime start = (request.scheduleStart != null) ? LocalDateTime.parse(request.scheduleStart) : LocalDateTime.now();
+        LocalDateTime end = (request.scheduleEnd != null) ? LocalDateTime.parse(request.scheduleEnd) : LocalDateTime.now().plusDays(7);
 
         Scheduler scheduler = new Scheduler();
-        String taskCsvPath = resolveResourcePath("tasks.csv").toString();
-        List<Event> schedule = scheduler.generateSchedule(fixedEvents, start, end, taskCsvPath);
+        List<Event> schedule = new ArrayList<>();
+
+        try {
+            String taskCsvData = supabaseService.exportTasksCsv().toString();
+            schedule = scheduler.generateSchedule(fixedEvents, start, end, taskCsvData);
+        } catch (IOException | InterruptedException e) {
+            System.err.println("🚨 ERROR LOADING TASKS FROM SUPABASE FOR SCHEDULER: " + e.getMessage());
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+        }
 
         return schedule.stream().map(e -> {
             EventDTO dto = new EventDTO();
@@ -102,79 +156,33 @@ public class AdaptEDUController {
             dto.startTime = e.getStartTime() != null ? e.getStartTime().toString() : null;
             dto.endTime = e.getEndTime() != null ? e.getEndTime().toString() : null;
             dto.status = e.getStatus();
-            dto.category = e.getCategory();
-            dto.location = e.getLocation();
             return dto;
         }).collect(Collectors.toList());
     }
+    
+    @PostMapping("/state/save-csv")
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> saveStateCsv(@RequestBody Map<String, Object> payload) {
+        System.out.println("📡 UI BACKGROUND SYNC TRIGGERED: Receiving data...");
+        try {
+            List<Map<String, Object>> tasks = (List<Map<String, Object>>) payload.getOrDefault("tasks", new ArrayList<>());
+            List<Map<String, Object>> events = (List<Map<String, Object>>) payload.getOrDefault("events", new ArrayList<>());
 
-    //@PostMapping("/state/save-csv")
-    //public Map<String, Object> saveStateCsv(@RequestBody CsvSyncRequest request) throws IOException {
-      //  List<TaskDTO> tasks = request.tasks == null ? List.of() : request.tasks;
-       // List<EventDTO> events = request.events == null ? List.of() : request.events;
+            System.out.println("📦 RECEIVED TASKS COUNT: " + tasks.size());
+            System.out.println("📦 RECEIVED EVENTS COUNT: " + events.size());
 
-       // writeTasksCsv(tasks, resolveResourcePath("tasks.csv"));
-       // writeEventsCsv(events, resolveResourcePath("events.csv"));
+            supabaseService.saveState(tasks, events);
+            
+            System.out.println("✅ CLOUD SYNC SUCCESS: Background save complete!");
+            return Map.of("status", "success");
 
-       // return Map.of(
-       
-        //        "status", "ok",
-          //      "tasksSaved", tasks.size(),
-            //    "eventsSaved", events.size()
-  //      );
- //   }
-
-    private static Path resolveResourcePath(String fileName) {
-        Path inModule = Paths.get("src", "main", "resources", fileName);
-        if (Files.exists(inModule.getParent())) return inModule;
-
-        Path fromRepoRoot = Paths.get("SpringBootTest", "src", "main", "resources", fileName);
-        if (Files.exists(fromRepoRoot.getParent())) return fromRepoRoot;
-
-        return inModule;
-    }
-
-    private static void writeTasksCsv(List<TaskDTO> tasks, Path path) throws IOException {
-        StringBuilder out = new StringBuilder();
-        out.append("name,category,dueDate,userPriority,estimatedTime,completed,description,minutesSpent,archived,archivedAt\n");
-        for (TaskDTO task : tasks) {
-            out.append(csv(task.name)).append(',')
-                    .append(csv(task.category)).append(',')
-                    .append(csv(task.dueDate)).append(',')
-                    .append(task.userPriority).append(',')
-                    .append(task.estimatedTime).append(',')
-                    .append(task.completed).append(',')
-                    .append(csv(task.description)).append(',')
-                    .append(task.minutesSpent).append(',')
-                    .append(task.archived).append(',')
-                    .append(task.archivedAt == null ? "" : task.archivedAt)
-                    .append('\n');
+        } catch (Exception e) {
+            System.err.println("🚨 BACKGROUND SYNC ERROR: " + e.getMessage());
+            e.printStackTrace();
+            return Map.of(
+                "status", "error",
+                "message", "Failed to sync to cloud database: " + e.getMessage()
+            );
         }
-        Files.writeString(path, out.toString(), StandardCharsets.UTF_8);
-    }
-
-    private static void writeEventsCsv(List<EventDTO> events, Path path) throws IOException {
-        StringBuilder out = new StringBuilder();
-        out.append("name,startTime,endTime,location,status,category,reminderEnabled,reminderEveryDays,archived,archivedAt\n");
-        for (EventDTO event : events) {
-            out.append(csv(event.name)).append(',')
-                    .append(csv(event.startTime)).append(',')
-                    .append(csv(event.endTime)).append(',')
-                    .append(csv(event.location)).append(',')
-                    .append(csv(event.status)).append(',')
-                    .append(csv(event.category)).append(',')
-                    .append(event.reminderEnabled).append(',')
-                    .append(event.reminderEveryDays == null ? "" : event.reminderEveryDays).append(',')
-                    .append(event.archived).append(',')
-                    .append(event.archivedAt == null ? "" : event.archivedAt)
-                    .append('\n');
-        }
-        Files.writeString(path, out.toString(), StandardCharsets.UTF_8);
-    }
-
-    private static String csv(String value) {
-        if (value == null) return "";
-        String escaped = value.replace("\"", "\"\"");
-        return "\"" + escaped + "\"";
     }
 }

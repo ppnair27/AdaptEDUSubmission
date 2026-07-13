@@ -1,0 +1,31 @@
+{
+  "id": "/",
+  "name": "AdaptEDU Calendar",
+  "short_name": "AdaptEDU",
+  "description": "Smart calendar and pomodoro task scheduler.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#111111",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-desktop.png",
+      "sizes": "2940x1844",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "770x1678",
+      "type": "image/png"
+    }
+  ]
+}

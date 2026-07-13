@@ -42,31 +42,45 @@ public class SupabaseService {
     @Value("${SUPABASE_ANON_KEY:}")
     private String anonKey;
 
-    @Value("${supabase.tasks-table:tasks}")
+    @Value("${supabase.tasks-table:task}") // <-- Deleted the 's'
     private String tasksTable;
 
-    @Value("${supabase.events-table:events}")
+    @Value("${supabase.events-table:event}") // <-- Deleted the 's'
     private String eventsTable;
-
-    public void saveState(List<Map<String, Object>> tasks, List<Map<String, Object>> events) throws IOException, InterruptedException {
-        replaceTable(tasksTable, sanitizeTasks(tasks));
-        replaceTable(eventsTable, sanitizeEvents(events));
+    
+    public void saveState(List<Map<String, Object>> task, List<Map<String, Object>> event) throws IOException, InterruptedException {
+        replaceTable(tasksTable, sanitizeTasks(task));
+        replaceTable(eventsTable, sanitizeEvents(event));
     }
-
-    public Path exportTasksCsv() throws IOException, InterruptedException {
+public Path exportTasksCsv() throws IOException, InterruptedException {
         List<Map<String, Object>> rows = fetchRows(tasksTable);
         Path tempFile = Files.createTempFile("adaptedu-tasks-", ".csv");
         StringBuilder out = new StringBuilder();
         out.append("name,category,dueDate,userPriority,estimatedTime,completed,maxSessionLength,description\n");
+        
         for (Map<String, Object> row : rows) {
-            out.append(csv(stringValue(row, "name"))).append(',')
-                    .append(csv(stringValue(row, "category"))).append(',')
-                    .append(csv(csvTimestamp(stringValue(row, "due_date", "dueDate")))).append(',')
-                    .append(intValue(row, 5, "user_priority", "userPriority")).append(',')
-                    .append(intValue(row, 60, "estimated_time", "estimatedTime")).append(',')
-                    .append(booleanValue(row, false, "completed")).append(',')
-                    .append(intValue(row, 120, "max_session_length", "maxSessionLength")).append(',')
-                    .append(csv(stringValue(row, "description"))).append('\n');
+            String name = row.get("name") != null ? row.get("name").toString() : "";
+            String category = row.get("category") != null ? row.get("category").toString() : "";
+            
+            Object rawDue = row.get("due_date") != null ? row.get("due_date") : row.get("dueDate");
+            String dueDate = rawDue != null ? rawDue.toString() : "";
+            
+            // 👇 Using your robust helper methods exactly as intended 👇
+            int priority = intValue(row, 5, "user_priority", "userPriority");
+            int estTime = intValue(row, 60, "estimated_time", "estimatedTime");
+            boolean completed = booleanValue(row, false, "completed");
+            int maxSession = intValue(row, 120, "max_session_length", "maxSessionLength");
+            
+            String desc = row.get("description") != null ? row.get("description").toString() : "";
+
+            out.append(csv(name)).append(',')
+               .append(csv(category)).append(',')
+               .append(csv(csvTimestamp(dueDate))).append(',')
+               .append(priority).append(',')
+               .append(estTime).append(',')
+               .append(completed).append(',')
+               .append(maxSession).append(',')
+               .append(csv(desc)).append('\n');
         }
         Files.writeString(tempFile, out.toString(), StandardCharsets.UTF_8);
         tempFile.toFile().deleteOnExit();
@@ -78,18 +92,34 @@ public class SupabaseService {
         Path tempFile = Files.createTempFile("adaptedu-events-", ".csv");
         StringBuilder out = new StringBuilder();
         out.append("name,startTime,endTime,duration,location,travelTime,status,category,description\n");
+        
         for (Map<String, Object> row : rows) {
-            String startTime = csvTimestamp(stringValue(row, "start_time", "startTime"));
-            String endTime = csvTimestamp(stringValue(row, "end_time", "endTime"));
-            out.append(csv(stringValue(row, "name"))).append(',')
-                    .append(startTime).append(',')
-                    .append(endTime).append(',')
-                    .append(intValue(row, calculateDurationMinutes(startTime, endTime, 60), "duration")).append(',')
-                    .append(csv(stringValue(row, "location"))).append(',')
-                    .append(intValue(row, 0, "travel_time", "travelTime")).append(',')
-                    .append(stringValue(row, "status", "FIXED_EVENT")).append(',')
-                    .append(csv(stringValue(row, "category"))).append(',')
-                    .append(csv(stringValue(row, "description"))).append('\n');
+            String name = row.get("name") != null ? row.get("name").toString() : "";
+            
+            Object rawStart = row.get("start_time") != null ? row.get("start_time") : row.get("startTime");
+            String startTime = csvTimestamp(rawStart != null ? rawStart.toString() : "");
+            
+            Object rawEnd = row.get("end_time") != null ? row.get("end_time") : row.get("endTime");
+            String endTime = csvTimestamp(rawEnd != null ? rawEnd.toString() : "");
+            
+            // 👇 Using your robust helper methods exactly as intended 👇
+            int duration = intValue(row, calculateDurationMinutes(startTime, endTime, 60), "duration");
+            String location = row.get("location") != null ? row.get("location").toString() : "";
+            int travel = intValue(row, 0, "travel_time", "travelTime");
+            
+            String status = row.get("status") != null ? row.get("status").toString() : "FIXED_EVENT";
+            String category = row.get("category") != null ? row.get("category").toString() : "";
+            String desc = row.get("description") != null ? row.get("description").toString() : "";
+
+            out.append(csv(name)).append(',')
+               .append(startTime).append(',')
+               .append(endTime).append(',')
+               .append(duration).append(',')
+               .append(csv(location)).append(',')
+               .append(travel).append(',')
+               .append(status).append(',')
+               .append(csv(category)).append(',')
+               .append(csv(desc)).append('\n');
         }
         Files.writeString(tempFile, out.toString(), StandardCharsets.UTF_8);
         tempFile.toFile().deleteOnExit();
@@ -195,22 +225,25 @@ public class SupabaseService {
         return fixed;
     }
 
-    private List<Map<String, Object>> sanitizeTasks(List<Map<String, Object>> tasks) {
+   private List<Map<String, Object>> sanitizeTasks(List<Map<String, Object>> tasks) {
         List<Map<String, Object>> sanitized = new ArrayList<>();
         for (Map<String, Object> task : tasks) {
             Map<String, Object> row = new HashMap<>();
-            row.put("name", stringValue(task, "name"));
-            row.put("category", stringValue(task, "category"));
-            // FIX: Format the due_date properly for Supabase timestamptz before uploading
+            
+            // Explicitly extract primitive values to avoid the Java Varargs trap
+            row.put("id", task.get("id") != null ? task.get("id").toString() : null);
+            row.put("name", task.get("name") != null ? task.get("name").toString() : "");
+            row.put("category", task.get("category") != null ? task.get("category").toString() : "");
             row.put("due_date", formatTimestamp(stringValue(task, "dueDate", "due_date")));
             row.put("user_priority", intValue(task, 5, "userPriority", "user_priority"));
             row.put("estimated_time", intValue(task, 60, "estimatedTime", "estimated_time"));
             row.put("completed", booleanValue(task, false, "completed"));
             row.put("max_session_length", intValue(task, 120, "maxSessionLength", "max_session_length"));
-            row.put("description", stringValue(task, "description"));
+            row.put("description", task.get("description") != null ? task.get("description").toString() : "");
             row.put("minutes_spent", intValue(task, 0, "minutesSpent", "minutes_spent"));
             row.put("archived", booleanValue(task, false, "archived"));
             row.put("archived_at", longValue(task, null, "archivedAt", "archived_at"));
+            
             sanitized.add(row);
         }
         return sanitized;
@@ -222,20 +255,22 @@ public class SupabaseService {
             String startTime = stringValue(event, "startTime", "start_time");
             String endTime = stringValue(event, "endTime", "end_time");
             Map<String, Object> row = new HashMap<>();
-            row.put("name", stringValue(event, "name"));
-            // FIX: Format the start/end times properly for Supabase timestamptz before uploading
+            
+            row.put("id", event.get("id") != null ? event.get("id").toString() : null);
+            row.put("name", event.get("name") != null ? event.get("name").toString() : "");
             row.put("start_time", formatTimestamp(startTime));
             row.put("end_time", formatTimestamp(endTime));
             row.put("duration", intValue(event, calculateDurationMinutes(startTime, endTime, 60), "duration"));
-            row.put("location", stringValue(event, "location"));
+            row.put("location", event.get("location") != null ? event.get("location").toString() : "");
             row.put("travel_time", intValue(event, 0, "travelTime", "travel_time"));
-            row.put("status", stringValue(event, "status", "FIXED_EVENT"));
-            row.put("category", stringValue(event, "category"));
-            row.put("description", stringValue(event, "description"));
+            row.put("status", event.get("status") != null ? event.get("status").toString() : "FIXED_EVENT");
+            row.put("category", event.get("category") != null ? event.get("category").toString() : "");
+            row.put("description", event.get("description") != null ? event.get("description").toString() : "");
             row.put("reminder_enabled", booleanValue(event, false, "reminderEnabled", "reminder_enabled"));
             row.put("reminder_every_days", intValue(event, 1, "reminderEveryDays", "reminder_every_days"));
             row.put("archived", booleanValue(event, false, "archived"));
             row.put("archived_at", longValue(event, null, "archivedAt", "archived_at"));
+            
             sanitized.add(row);
         }
         return sanitized;
@@ -299,20 +334,6 @@ public class SupabaseService {
         return "";
     }
 
-    private int intValue(Object value, int fallback) {
-        if (value == null) {
-            return fallback;
-        }
-        try {
-            if (value instanceof Number number) {
-                return number.intValue();
-            }
-            return Integer.parseInt(value.toString());
-        } catch (Exception e) {
-            return fallback;
-        }
-    }
-
     private int intValue(Map<String, Object> row, int fallback, String... keys) {
         for (String key : keys) {
             Object value = row.get(key);
@@ -329,16 +350,6 @@ public class SupabaseService {
             }
         }
         return fallback;
-    }
-
-    private boolean booleanValue(Object value, boolean fallback) {
-        if (value == null) {
-            return fallback;
-        }
-        if (value instanceof Boolean bool) {
-            return bool;
-        }
-        return Boolean.parseBoolean(value.toString());
     }
 
     private boolean booleanValue(Map<String, Object> row, boolean fallback, String... keys) {
