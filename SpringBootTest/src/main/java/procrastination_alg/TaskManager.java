@@ -199,7 +199,8 @@ public class TaskManager {
     public void procrastinate() {
         for (Task task : tasks) {
             task.setEstimatedTime(
-                    (int) Math.round(ProcrastinationAlgorithm.getRealisticTimeInMinutes(task.getEstimatedTime())));
+                    (int) Math.round(ProcrastinationAlgorithm.getRealisticTimeInMinutes(task.getEstimatedTime(),
+                            task.getCategory())));
         }
     }
 

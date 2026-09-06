@@ -67,11 +67,11 @@ class CalEvent {
 // ── State ──────────────────────────────────────────────────────────────────
 let currentDate = new Date();          // anchor date for all views
 let currentView = 'week';              // 'week' | 'month' | 'day'
-let tasks  = [];
+let tasks = [];
 let events = [];
 let scheduledBlocks = [];
 let START_HOUR = 8;
-let END_HOUR   = 22;
+let END_HOUR = 22;
 let globalTheme = 'black';
 const STORAGE_KEY = 'adaptedu.calendar.state.v1';
 let csvSyncTimer = null;
@@ -89,12 +89,12 @@ let currentPomoBlock = null;
 
 // ── Category colors (must match CSS) ──────────────────────────────────────
 const CAT_COLORS = {
-    school:          '#82b1ff',
-    work:            '#a5d6a7',
-    personal:        '#ce93d8',
+    school: '#82b1ff',
+    work: '#a5d6a7',
+    personal: '#ce93d8',
     extracurricular: '#ffb74d',
-    extra:           '#ffb74d',
-    other:           '#b0bec5',
+    extra: '#ffb74d',
+    other: '#b0bec5',
 };
 function catColor(cat) { return CAT_COLORS[cat] || CAT_COLORS.other; }
 
@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savedSettings.theme) globalTheme = savedSettings.theme;
     if (savedSettings.startHour !== undefined) START_HOUR = parseInt(savedSettings.startHour, 10);
     if (savedSettings.endHour !== undefined) END_HOUR = parseInt(savedSettings.endHour, 10);
-    
+
     setGlobalTheme(globalTheme);
 
     setupListeners();
@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (currentView === 'week') snapToMonday(currentDate);
     refreshAll(true);
-    
+
     // Start checking for active sessions
     if (sessionCheckInterval) clearInterval(sessionCheckInterval);
     sessionCheckInterval = setInterval(checkActiveSession, 10000);
@@ -191,15 +191,15 @@ function setupListeners() {
 
     // Navigation
     document.getElementById('prev-btn').addEventListener('click', () => {
-        if (currentView === 'week')  currentDate.setDate(currentDate.getDate() - 7);
+        if (currentView === 'week') currentDate.setDate(currentDate.getDate() - 7);
         if (currentView === 'month') currentDate.setMonth(currentDate.getMonth() - 1);
-        if (currentView === 'day')   currentDate.setDate(currentDate.getDate() - 1);
+        if (currentView === 'day') currentDate.setDate(currentDate.getDate() - 1);
         refreshAll();
     });
     document.getElementById('next-btn').addEventListener('click', () => {
-        if (currentView === 'week')  currentDate.setDate(currentDate.getDate() + 7);
+        if (currentView === 'week') currentDate.setDate(currentDate.getDate() + 7);
         if (currentView === 'month') currentDate.setMonth(currentDate.getMonth() + 1);
-        if (currentView === 'day')   currentDate.setDate(currentDate.getDate() + 1);
+        if (currentView === 'day') currentDate.setDate(currentDate.getDate() + 1);
         refreshAll();
     });
     document.getElementById('today-btn').addEventListener('click', () => {
@@ -241,10 +241,10 @@ function setupListeners() {
         btn.addEventListener('click', (e) => {
             document.querySelectorAll('.pomo-mode-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            
+
             pomoWorkDuration = parseInt(btn.dataset.work, 10);
             pomoBreakDuration = parseInt(btn.dataset.break, 10);
-            
+
             // If not running, reset timer to new duration
             if (!pomoIsRunning) {
                 pomoTimeLeft = (pomoIsWorking ? pomoWorkDuration : pomoBreakDuration) * 60;
@@ -269,17 +269,17 @@ function setupListeners() {
     document.getElementById('settings-btn').addEventListener('click', () => {
         document.getElementById('settings-wake').value = `${String(START_HOUR).padStart(2, '0')}:00`;
         document.getElementById('settings-sleep').value = `${String(END_HOUR).padStart(2, '0')}:00`;
-        
+
         document.querySelectorAll('.global-color-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.color === globalTheme);
         });
         settingsModal.classList.remove('hidden');
     });
-    
+
     ['close-settings-modal', 'cancel-settings-btn'].forEach(id => {
         document.getElementById(id).addEventListener('click', () => settingsModal.classList.add('hidden'));
     });
-    
+
     let tempTheme = globalTheme;
     document.querySelectorAll('.global-color-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -288,19 +288,19 @@ function setupListeners() {
             tempTheme = btn.dataset.color;
         });
     });
-    
+
     document.getElementById('settings-form').addEventListener('submit', (e) => {
         e.preventDefault();
         globalTheme = tempTheme;
         setGlobalTheme(globalTheme);
-        
+
         const wake = document.getElementById('settings-wake').value;
         const sleep = document.getElementById('settings-sleep').value;
         START_HOUR = parseInt(wake.split(':')[0], 10);
         END_HOUR = parseInt(sleep.split(':')[0], 10);
-        
+
         if (START_HOUR >= END_HOUR) { alert("Wake up time must be before sleep time!"); return; }
-        
+
         localStorage.setItem('adaptedu.settings', JSON.stringify({ theme: globalTheme, startHour: START_HOUR, endHour: END_HOUR }));
         settingsModal.classList.add('hidden');
         refreshAll(true);
@@ -316,7 +316,7 @@ function setupListeners() {
     });
 
     // Modals
-    const taskModal  = document.getElementById('add-task-modal');
+    const taskModal = document.getElementById('add-task-modal');
     const eventModal = document.getElementById('add-event-modal');
     const eventReminderSelect = document.getElementById('event-reminder-enabled');
     const eventReminderDaysGroup = document.getElementById('event-reminder-days-group');
@@ -371,7 +371,7 @@ function setupListeners() {
             maxSessionLength,
             f['task-description'].value
         ));
-        
+
         taskModal.classList.add('hidden');
         f.reset();
         refreshAll(true);
@@ -396,7 +396,7 @@ function setupListeners() {
             f['event-reminder-enabled'].value === 'yes',
             f['event-reminder-every-days'].value
         ));
-        
+
         eventModal.classList.add('hidden');
         f.reset();
         f['event-reminder-enabled'].value = 'no';
@@ -440,10 +440,10 @@ function checkActiveSession() {
     const now = new Date();
     // Find if the algorithm scheduled a task right now
     const activeBlock = scheduledBlocks.find(b => now >= b.startTime && now <= b.endTime);
-    
+
     const popup = document.getElementById('pomodoro-popup');
     const pomoView = document.getElementById('pomodoro-view');
-    
+
     if (activeBlock && pomoView.classList.contains('hidden')) {
         // New session detected, show popup!
         if (!currentPomoBlock || currentPomoBlock.id !== activeBlock.id) {
@@ -455,7 +455,7 @@ function checkActiveSession() {
         }
     } else if (!activeBlock) {
         popup.classList.add('hidden');
-        
+
         // If they are in the full screen view and the scheduled time ran out, let them know
         if (!pomoView.classList.contains('hidden') && currentPomoBlock) {
             alert(`Your scheduled session for '${currentPomoBlock.name}' is over! Navigating back to calendar.`);
@@ -468,14 +468,14 @@ function checkActiveSession() {
 function openPomodoro() {
     document.getElementById('pomodoro-popup').classList.add('hidden');
     document.getElementById('pomodoro-view').classList.remove('hidden');
-    
+
     // Force a fresh check in case they opened it manually
     const now = new Date();
     currentPomoBlock = scheduledBlocks.find(b => now >= b.startTime && now <= b.endTime);
-    
+
     const title = document.getElementById('pomo-current-task');
     const times = document.getElementById('pomo-session-times');
-    
+
     if (currentPomoBlock) {
         title.textContent = currentPomoBlock.name;
         times.textContent = `Scheduled: ${fmtTime(currentPomoBlock.startTime)} – ${fmtTime(currentPomoBlock.endTime)}`;
@@ -483,7 +483,7 @@ function openPomodoro() {
         title.textContent = 'Pomodoro Timer';
         times.textContent = '';
     }
-    
+
     if (!pomoIsRunning && pomoTimeLeft === pomoWorkDuration * 60) {
         updatePomoDisplay();
     }
@@ -505,7 +505,7 @@ function startPomodoro() {
     const btn = document.getElementById('pomo-start-pause-btn');
     btn.textContent = 'Pause';
     btn.classList.add('running');
-    
+
     pomoInterval = setInterval(() => {
         pomoTimeLeft--;
         if (pomoTimeLeft <= 0) {
@@ -539,7 +539,7 @@ function pausePomodoro() {
 function switchPomoPhase(toWork) {
     pomoIsWorking = toWork;
     pomoTimeLeft = (pomoIsWorking ? pomoWorkDuration : pomoBreakDuration) * 60;
-    
+
     const label = document.getElementById('pomo-phase-label');
     label.textContent = pomoIsWorking ? 'Work Time' : 'Break Time';
     label.classList.toggle('break-mode', !pomoIsWorking);
@@ -558,7 +558,7 @@ function setPomodoroTheme(color) {
         if (c.startsWith('theme-')) view.classList.remove(c);
     });
     view.classList.add(`theme-${color}`);
-    
+
     document.querySelectorAll('.pomo-color-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.color === color);
     });
@@ -578,10 +578,10 @@ async function fetchScheduledBlocks() {
             cache: 'no-store'
         });
         if (!response.ok) return;
-        
+
         const scheduleData = await response.json();
         console.log("Raw Backend Schedule Data:", scheduleData);
-        
+
         // Filter out the algorithm's split blocks and format them for the UI
         scheduledBlocks = scheduleData
             .filter(item => item.status === 'SCHEDULED_TASK')
@@ -589,10 +589,10 @@ async function fetchScheduledBlocks() {
                 // Match with original task to inherit its completion status and category
                 const baseTaskName = item.name.replace(/\s*\(Session \d+\)$/, '');
                 const matchedTask = tasks.find(t => t.name === baseTaskName);
-                
+
                 const parsedStart = parseBackendDate(item.startTime);
                 const parsedEnd = parseBackendDate(item.endTime);
-                
+
                 console.log(`Task Block '${item.name}' was placed on the calendar for:`, parsedStart.toLocaleString());
 
                 return {
@@ -605,7 +605,7 @@ async function fetchScheduledBlocks() {
                     matchedTask: matchedTask
                 };
             });
-            
+
         renderCalendar();
         checkActiveSession();
     } catch (err) {
@@ -648,7 +648,7 @@ function updateStats() {
     const active = tasks.filter(t => !t.archived);
     document.getElementById('stat-pending').textContent = active.filter(t => !t.completed).length;
     document.getElementById('stat-overdue').textContent = active.filter(t => t.isOverdue()).length;
-    document.getElementById('stat-events').textContent  = events.filter(e => !e.archived).length;
+    document.getElementById('stat-events').textContent = events.filter(e => !e.archived).length;
 
     const categories = ['school', 'work', 'personal', 'extracurricular', 'other'];
     const counts = Object.fromEntries(categories.map(c => [c, 0]));
@@ -705,7 +705,7 @@ function renderTimeGrid(numDays) {
     header.innerHTML = '<div class="cal-header-spacer"></div>';
 
     const today = new Date();
-    const DAYS  = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     for (let i = 0; i < numDays; i++) {
         const d = new Date(currentDate);
@@ -784,16 +784,16 @@ function renderTimeGrid(numDays) {
     // Place blocks
     const gridStart = new Date(currentDate);
     gridStart.setHours(0, 0, 0, 0);
-    
+
     const gridEnd = new Date(gridStart);
     gridEnd.setDate(gridStart.getDate() + numDays);
 
     const placeBlock = (item, colIdx, startFrac, endFrac, isTask) => {
         const col = document.getElementById(`day-col-${colIdx}`);
         if (!col || endFrac <= 0 || startFrac >= 24) return;
-        const top    = Math.max(0, startFrac) * 60;
+        const top = Math.max(0, startFrac) * 60;
         const height = Math.max(18, (Math.min(24, endFrac) - Math.max(0, startFrac)) * 60 - 1);
-        const block  = document.createElement('div');
+        const block = document.createElement('div');
         const catCls = normCat(item.category);
         block.className = `cal-block ${catCls}${isTask ? ' task-block' : ''}`;
         if (isTask && item.completed) block.classList.add('completed-task-block');
@@ -803,15 +803,15 @@ function renderTimeGrid(numDays) {
             : isTask
                 ? `${item.completed ? 'Completed · was due' : 'Due'} ${fmtTime(item.dueDate)}`
                 : `${fmtTime(item.startTime)} – ${fmtTime(item.endTime)}`;
-        
+
         // Clean up title for break blocks to just show 'Break' clearly
         let blockName = item.name;
         if (catCls === 'break') {
             blockName = blockName.replace(/\s*\(Session \d+\)$/, '');
         }
-        
+
         block.innerHTML = `<div class="block-title">${blockName}</div><div class="block-time">${timeStr}</div>`;
-        
+
         let tooltip = item.name;
         if (item.type === 'scheduledBlock') {
             tooltip += `\nSession: ${fmtTime(item.startTime)} – ${fmtTime(item.endTime)}`;
@@ -828,24 +828,24 @@ function renderTimeGrid(numDays) {
             if (item.location) tooltip += `\nLocation: ${item.location}`;
         }
         block.title = tooltip;
-        
+
         block.addEventListener('click', e => { e.stopPropagation(); showPopover(item, e); });
         col.appendChild(block);
     };
 
     events.filter(ev => !ev.archived && ev.startTime >= gridStart && ev.startTime < gridEnd).forEach(ev => {
-        const colIdx   = numDays === 1 ? 0 : dayIndex(ev.startTime);
+        const colIdx = numDays === 1 ? 0 : dayIndex(ev.startTime);
         const startFrac = timeFrac(ev.startTime);
-        const endFrac   = timeFrac(ev.endTime);
+        const endFrac = timeFrac(ev.endTime);
         placeBlock(ev, colIdx, startFrac, endFrac, false);
     });
 
     scheduledBlocks
         .filter(b => b.startTime >= gridStart && b.startTime < gridEnd)
         .forEach(b => {
-            const colIdx    = numDays === 1 ? 0 : dayIndex(b.startTime);
+            const colIdx = numDays === 1 ? 0 : dayIndex(b.startTime);
             const startFrac = timeFrac(b.startTime);
-            const endFrac   = timeFrac(b.endTime);
+            const endFrac = timeFrac(b.endTime);
             placeBlock(b, colIdx, startFrac, endFrac, true);
         });
 }
@@ -863,7 +863,7 @@ function renderMonthView() {
     // Day name header
     const hrow = document.createElement('div');
     hrow.className = 'month-header-row';
-    ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(d => {
+    ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach(d => {
         hrow.innerHTML += `<div class="month-day-name">${d}</div>`;
     });
     wrap.appendChild(hrow);
@@ -872,11 +872,11 @@ function renderMonthView() {
     const grid = document.createElement('div');
     grid.className = 'month-grid';
 
-    const year  = currentDate.getFullYear();
+    const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const firstDay = new Date(year, month, 1);
-    const lastDay  = new Date(year, month + 1, 0);
-    const today    = new Date();
+    const lastDay = new Date(year, month + 1, 0);
+    const today = new Date();
 
     // Start on Monday
     let startOffset = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
@@ -888,7 +888,7 @@ function renderMonthView() {
     for (let i = 0; i < totalCells; i++) {
         const cellDate = new Date(gridStart);
         cellDate.setDate(gridStart.getDate() + i);
-        const isToday      = cellDate.toDateString() === today.toDateString();
+        const isToday = cellDate.toDateString() === today.toDateString();
         const isOtherMonth = cellDate.getMonth() !== month;
 
         const cell = document.createElement('div');
@@ -906,11 +906,11 @@ function renderMonthView() {
         cell.appendChild(dateEl);
 
         // Items on this day
-        const cellStart = new Date(cellDate); cellStart.setHours(0,0,0,0);
-        const cellEnd   = new Date(cellDate); cellEnd.setHours(23,59,59,999);
+        const cellStart = new Date(cellDate); cellStart.setHours(0, 0, 0, 0);
+        const cellEnd = new Date(cellDate); cellEnd.setHours(23, 59, 59, 999);
 
         const dayEvents = events.filter(ev => !ev.archived && ev.startTime >= cellStart && ev.startTime <= cellEnd);
-        const dayTasks  = scheduledBlocks.filter(b => b.startTime >= cellStart && b.startTime <= cellEnd);
+        const dayTasks = scheduledBlocks.filter(b => b.startTime >= cellStart && b.startTime <= cellEnd);
 
         const allItems = [...dayEvents, ...dayTasks];
         const MAX_SHOW = 3;
@@ -920,7 +920,7 @@ function renderMonthView() {
             pill.className = `month-event-pill ${catCls}${item.type === 'task' ? ' task-pill' : ''}`;
             if (item.type === 'task' && item.completed) pill.classList.add('completed-task-pill');
             pill.textContent = item.name;
-            
+
             let tooltip = item.name;
             if (item.type === 'scheduledBlock') {
                 tooltip += `\nSession: ${fmtTime(item.startTime)} – ${fmtTime(item.endTime)}`;
@@ -936,7 +936,7 @@ function renderMonthView() {
                 if (item.location) tooltip += `\nLocation: ${item.location}`;
             }
             pill.title = tooltip;
-            
+
             pill.addEventListener('click', e => { e.stopPropagation(); showPopover(item, e); });
             cell.appendChild(pill);
         });
@@ -964,16 +964,16 @@ function renderMonthView() {
  * @param {string} tab - 'tasks' | 'events' | 'archive'
  */
 function renderTaskList(tab = 'tasks') {
-    const el      = document.getElementById('task-list');
+    const el = document.getElementById('task-list');
     const subhead = document.getElementById('task-list-subheader');
-    el.innerHTML  = '';
+    el.innerHTML = '';
 
     if (tab === 'archive') {
         subhead.textContent = 'Completed & Archived ↓';
-        const archivedTasks  = tasks.filter(t  => t.archived);
+        const archivedTasks = tasks.filter(t => t.archived);
         const archivedEvents = events.filter(ev => ev.archived);
         const all = [
-            ...archivedTasks.map(t  => ({ item: t,  archivedAt: t.archivedAt })),
+            ...archivedTasks.map(t => ({ item: t, archivedAt: t.archivedAt })),
             ...archivedEvents.map(ev => ({ item: ev, archivedAt: ev.archivedAt }))
         ].sort((a, b) => (b.archivedAt || 0) - (a.archivedAt || 0));
 
@@ -1000,7 +1000,7 @@ function renderTaskList(tab = 'tasks') {
 
     // Tasks tab
     subhead.textContent = 'Priority Score ↓';
-    const activeTasks  = tasks.filter(t  => !t.archived).sort((a, b) => b.getPriorityScore() - a.getPriorityScore());
+    const activeTasks = tasks.filter(t => !t.archived).sort((a, b) => b.getPriorityScore() - a.getPriorityScore());
 
     if (activeTasks.length === 0) {
         el.innerHTML = `<div class="empty-state">${getAllClearMessage()}</div>`;
@@ -1013,7 +1013,7 @@ function renderTaskList(tab = 'tasks') {
 }
 
 function getAllClearMessage() {
-    
+
     const messages = [
         'All clear!<br>Nothing left on the task list.',
         'Nice work!<br>You have zero tasks left right now.',
@@ -1034,20 +1034,20 @@ function getAllClearMessage() {
 function renderItem(item, container, isArchive) {
     const card = document.createElement('div');
     let tooltip = item.name;
-    
+
     if (item.type === 'task') {
         const t = item;
-        
+
         tooltip += `\nDue: ${t.dueDate.toLocaleDateString()} at ${fmtTime(t.dueDate)}`;
         tooltip += `\nEst. Time: ${t.estimatedTime}m`;
         tooltip += `\nMax Session: ${t.maxSessionLength === -1 ? 'No Breaks' : t.maxSessionLength + 'm'}`;
         if (t.description) tooltip += `\nNotes: ${t.description}`;
         card.title = tooltip;
-        
+
         const score = t.getPriorityScore();
         let scoreColor = 'var(--accent)';
         if (score === Infinity) scoreColor = 'var(--accent-red)';
-        else if (score > 15)   scoreColor = 'var(--accent-orange)';
+        else if (score > 15) scoreColor = 'var(--accent-orange)';
 
         card.className = `task-card ${t.isOverdue() ? 'overdue' : ''} ${t.completed ? 'completed' : ''}`;
         card.dataset.category = t.category;
@@ -1066,7 +1066,7 @@ function renderItem(item, container, isArchive) {
         card.innerHTML = `
             <div class="card-info">
                 <div class="card-name">${t.name}</div>
-                <div class="card-meta">${capFirst(t.category)} · Due ${t.dueDate.toLocaleDateString('en-US', {weekday:'short',month:'short',day:'numeric'})}</div>
+                <div class="card-meta">${capFirst(t.category)} · Due ${t.dueDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
                 <div class="card-detail">Priority ${t.userPriority} · Est ${t.estimatedTime}m · Max Session: ${t.maxSessionLength === -1 ? 'None' : t.maxSessionLength + 'm'} · ${t.getMinutesRemaining()}m left</div>
             </div>
             <div class="card-score" style="color:${scoreColor}">${score === Infinity ? '∞' : score === -1 ? '✓' : score.toFixed(1)}</div>
@@ -1076,11 +1076,11 @@ function renderItem(item, container, isArchive) {
 
     } else {
         const ev = item;
-        
+
         tooltip += `\nTime: ${fmtTime(ev.startTime)} – ${fmtTime(ev.endTime)}`;
         if (ev.location) tooltip += `\nLocation: ${ev.location}`;
         card.title = tooltip;
-        
+
         card.className = 'event-card';
         card.style.position = 'relative';
         card.style.paddingLeft = '14px';
@@ -1091,7 +1091,7 @@ function renderItem(item, container, isArchive) {
         card.innerHTML += `
             <div class="card-info">
                 <div class="card-name">${ev.name}</div>
-                <div class="card-meta">${ev.startTime.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})} · ${fmtTime(ev.startTime)}–${fmtTime(ev.endTime)}</div>
+                <div class="card-meta">${ev.startTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · ${fmtTime(ev.startTime)}–${fmtTime(ev.endTime)}</div>
                 <div class="card-detail">${capFirst(ev.category)} · ${ev.status}${ev.reminderEnabled ? ` · Remind every ${ev.reminderEveryDays} day(s)` : ''}</div>
             </div>
         `;
@@ -1104,11 +1104,11 @@ function renderItem(item, container, isArchive) {
 // DETAIL POPOVER
 // ══════════════════════════════════════════
 function showPopover(item, e) {
-    const pop     = document.getElementById('detail-popover');
-    const dot     = document.getElementById('popover-dot');
-    const title   = document.getElementById('popover-title');
-    const body    = document.getElementById('popover-body');
-    const footer  = document.getElementById('popover-footer');
+    const pop = document.getElementById('detail-popover');
+    const dot = document.getElementById('popover-dot');
+    const title = document.getElementById('popover-title');
+    const body = document.getElementById('popover-body');
+    const footer = document.getElementById('popover-footer');
 
     // Extract the parent task if this is a scheduled session block
     const isSession = item.type === 'scheduledBlock' && item.matchedTask;
@@ -1118,9 +1118,9 @@ function showPopover(item, e) {
     const isHappeningNow = isSession && (now >= item.startTime && now <= item.endTime);
 
     dot.style.background = catColor(targetItem.category);
-    title.textContent    = item.name; // Keep the specific block name (e.g., Session 1)
-    body.innerHTML       = '';
-    footer.innerHTML     = '';
+    title.textContent = item.name; // Keep the specific block name (e.g., Session 1)
+    body.innerHTML = '';
+    footer.innerHTML = '';
 
     const row = (icon, label, val) => {
         if (!val) return;
@@ -1145,25 +1145,25 @@ function showPopover(item, e) {
 
     if (targetItem.type === 'task') {
         const t = targetItem;
-        row('📅', 'Due',        t.dueDate.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}));
-        row('⏰', 'Due time',   fmtTime(t.dueDate));
-        row('🏷', 'Category',   capFirst(t.category));
-        row('⭐', 'Priority',   `${t.userPriority}/10`);
-        row('⏱', 'Est. time',  `${t.estimatedTime} min`);
+        row('📅', 'Due', t.dueDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }));
+        row('⏰', 'Due time', fmtTime(t.dueDate));
+        row('🏷', 'Category', capFirst(t.category));
+        row('⭐', 'Priority', `${t.userPriority}/10`);
+        row('⏱', 'Est. time', `${t.estimatedTime} min`);
         row('⏳', 'Max Session', t.maxSessionLength === -1 ? 'No Breaks' : `${t.maxSessionLength} min`);
-        row('📝', 'Notes',      t.description);
-        row('📊', 'Score',      t.isOverdue() ? 'OVERDUE' : t.getPriorityScore().toFixed(2));
+        row('📝', 'Notes', t.description);
+        row('📊', 'Score', t.isOverdue() ? 'OVERDUE' : t.getPriorityScore().toFixed(2));
 
         if (!t.archived) {
             const btnComplete = btn('btn-complete', t.completed ? 'Mark Incomplete' : 'Mark Complete', () => {
-                t.completed  = !t.completed;
-                t.archived   = t.completed;
+                t.completed = !t.completed;
+                t.archived = t.completed;
                 t.archivedAt = t.completed ? Date.now() : null;
                 pop.classList.add('hidden');
                 refreshAll();
             });
             const btnArchive = btn('btn-archive', 'Archive', () => {
-                t.archived   = true;
+                t.archived = true;
                 t.archivedAt = Date.now();
                 pop.classList.add('hidden');
                 refreshAll();
@@ -1178,8 +1178,8 @@ function showPopover(item, e) {
             footer.appendChild(btnDel);
         } else {
             const btnRestore = btn('btn-archive', 'Restore', () => {
-                t.archived   = false;
-                t.completed  = false;
+                t.archived = false;
+                t.completed = false;
                 t.archivedAt = null;
                 pop.classList.add('hidden');
                 refreshAll();
@@ -1194,17 +1194,17 @@ function showPopover(item, e) {
         }
     } else {
         const ev = targetItem;
-        row('📅', 'Date',     ev.startTime.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}));
-        row('🕐', 'Time',     `${fmtTime(ev.startTime)} – ${fmtTime(ev.endTime)}`);
+        row('📅', 'Date', ev.startTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }));
+        row('🕐', 'Time', `${fmtTime(ev.startTime)} – ${fmtTime(ev.endTime)}`);
         row('⏱', 'Duration', `${ev.getDurationMins()} min`);
         row('📍', 'Location', ev.location);
         row('🏷', 'Category', capFirst(ev.category));
-        row('📌', 'Status',   ev.status);
+        row('📌', 'Status', ev.status);
         row('🔔', 'Reminder', ev.reminderEnabled ? `Every ${ev.reminderEveryDays} day(s) before event` : 'Off');
 
         if (!ev.archived) {
             const btnArc = btn('btn-archive', 'Archive', () => {
-                ev.archived   = true;
+                ev.archived = true;
                 ev.archivedAt = Date.now();
                 pop.classList.add('hidden');
                 refreshAll();
@@ -1218,7 +1218,7 @@ function showPopover(item, e) {
             footer.appendChild(btnDel);
         } else {
             const btnRestore = btn('btn-archive', 'Restore', () => {
-                ev.archived   = false;
+                ev.archived = false;
                 ev.archivedAt = null;
                 pop.classList.add('hidden');
                 refreshAll();
@@ -1235,16 +1235,16 @@ function showPopover(item, e) {
 
     // Position popover near click
     pop.classList.remove('hidden');
-    
+
     const rect = pop.getBoundingClientRect();
     const popW = rect.width, popH = rect.height;
     let left = e.clientX + 12, top = e.clientY - 20;
-    if (left + popW > window.innerWidth - 10)  left = e.clientX - popW - 12;
-    if (top  + popH > window.innerHeight - 10) top  = window.innerHeight - popH - 10;
+    if (left + popW > window.innerWidth - 10) left = e.clientX - popW - 12;
+    if (top + popH > window.innerHeight - 10) top = window.innerHeight - popH - 10;
     if (left < 10) left = 10;
     if (top < 10) top = 10;
     pop.style.left = `${left}px`;
-    pop.style.top  = `${top}px`;
+    pop.style.top = `${top}px`;
 }
 
 function btn(cls, label, handler) {
@@ -1267,25 +1267,25 @@ function seedDemoData() {
         return x;
     };
 
-    tasks.push(new Task("Math Homework",       "School",          d(0, 17),  8, 90,  120, "Chapter 5 exercises"));
-    tasks.push(new Task("Physics Lab Report",  "School",          d(2, 12),  6, 60,  120, "Include all graphs"));
-    tasks.push(new Task("Team Presentation",   "Work",            d(3, 15),  9, 120, 120, "Slides + script"));
-    tasks.push(new Task("Journal Entry",       "Personal",        d(1, 20),  4, 20,  120, ""));
-    tasks.push(new Task("Overdue Assignment",  "School",          d(-1, 12), 8, 45,  120, "Submit on portal"));
+    tasks.push(new Task("Math Homework", "School", d(0, 17), 8, 90, 120, "Chapter 5 exercises"));
+    tasks.push(new Task("Physics Lab Report", "School", d(2, 12), 6, 60, 120, "Include all graphs"));
+    tasks.push(new Task("Team Presentation", "Work", d(3, 15), 9, 120, 120, "Slides + script"));
+    tasks.push(new Task("Journal Entry", "Personal", d(1, 20), 4, 20, 120, ""));
+    tasks.push(new Task("Overdue Assignment", "School", d(-1, 12), 8, 45, 120, "Submit on portal"));
 
-    events.push(new CalEvent("School",          d(0,  8), d(0, 15), "Main Building",    "FIXED",    "School"));
-    events.push(new CalEvent("School",          d(1,  8), d(1, 15), "Main Building",    "FIXED",    "School"));
-    events.push(new CalEvent("School",          d(2,  8), d(2, 15), "Main Building",    "FIXED",    "School"));
-    events.push(new CalEvent("School",          d(3,  8), d(3, 15), "Main Building",    "FIXED",    "School"));
-    events.push(new CalEvent("School",          d(4,  8), d(4, 15), "Main Building",    "FIXED",    "School"));
-    events.push(new CalEvent("Soccer Practice", d(1, 16, 30), d(1, 18), "Sports Field", "FIXED",    "Extracurricular"));
-    events.push(new CalEvent("Club Meeting",    d(3, 15), d(3, 16),  "Room 204",        "OPTIONAL", "Extracurricular"));
-    events.push(new CalEvent("Work Shift",      d(2, 16), d(2, 20),  "Office",          "FIXED",    "Work"));
+    events.push(new CalEvent("School", d(0, 8), d(0, 15), "Main Building", "FIXED", "School"));
+    events.push(new CalEvent("School", d(1, 8), d(1, 15), "Main Building", "FIXED", "School"));
+    events.push(new CalEvent("School", d(2, 8), d(2, 15), "Main Building", "FIXED", "School"));
+    events.push(new CalEvent("School", d(3, 8), d(3, 15), "Main Building", "FIXED", "School"));
+    events.push(new CalEvent("School", d(4, 8), d(4, 15), "Main Building", "FIXED", "School"));
+    events.push(new CalEvent("Soccer Practice", d(1, 16, 30), d(1, 18), "Sports Field", "FIXED", "Extracurricular"));
+    events.push(new CalEvent("Club Meeting", d(3, 15), d(3, 16), "Room 204", "OPTIONAL", "Extracurricular"));
+    events.push(new CalEvent("Work Shift", d(2, 16), d(2, 20), "Office", "FIXED", "Work"));
 }
 
 function formatLocalISO(d) {
     const pad = n => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
 }
 
 function saveState(fetchSchedule = false) {

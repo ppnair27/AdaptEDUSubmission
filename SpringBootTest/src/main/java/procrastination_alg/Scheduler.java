@@ -121,9 +121,24 @@ public class Scheduler {
 
             Task task = tasks.getTasks().get(0);
             System.out.println(sessionInDay);
-            if (task.getPriorityScore() < -15 + 4 * sessionInDay) { // If the priority is low and there have already
+            if (task.getPriorityScore() < -20 + 4 * sessionInDay) { // If the priority is low and there have already
                                                                     // been many tasks, give the user a break
-                task = new Task("Break", "BREAK", LocalDateTime.MAX, 0, 120, false, 120, "Break");
+                task = new Task("Break 4", "BREAK", LocalDateTime.MAX, 0, 240, false, 6000, "Break");
+                sessionInDay = 0;
+            } else if (task.getPriorityScore() < -15 + 4 * sessionInDay) { // If the priority is low and there have
+                                                                           // already
+                // been many tasks, give the user a break
+                task = new Task("Break 3", "BREAK", LocalDateTime.MAX, 0, 180, false, 6000, "Break");
+                sessionInDay = 0;
+            } else if (task.getPriorityScore() < -10 + 4 * sessionInDay) { // If the priority is low and there have
+                                                                           // already
+                // been many tasks, give the user a break
+                task = new Task("Break 2", "BREAK", LocalDateTime.MAX, 0, 120, false, 6000, "Break");
+                sessionInDay = 0;
+            } else if (task.getPriorityScore() < -5 + 4 * sessionInDay) { // If the priority is low and there have
+                                                                          // already
+                // been many tasks, give the user a break
+                task = new Task("Break 1", "BREAK", LocalDateTime.MAX, 0, 60, false, 6000, "Break");
                 sessionInDay = 0;
             }
 
@@ -175,7 +190,7 @@ public class Scheduler {
                                                                       // a
                                                                       // break
                         System.out.println("Break 10 scheduled");
-                        task = new Task("Break 10", "BREAK", LocalDateTime.MAX, 0, 10, false, 10, "Break");
+                        task = new Task("Break 15", "BREAK", LocalDateTime.MAX, 0, 15, false, 10, "Break");
                         sessionInDay = 0;
                     }
                 }
@@ -308,13 +323,13 @@ public class Scheduler {
             }
         }
 
-        // Add a final 71 free slots to allow for task overflow
+        // Add a final 701 free slots to allow for task overflow
         if (currentTime.getHour() < windowEnd.getHour()) {
             freeSlots.add(new TimeSlot(currentTime,
                     currentTime.withHour(windowEnd.getHour()).withMinute(0).withSecond(0).withNano(0)));
         }
         currentTime = currentTime.plusDays(1).withHour(windowStart.getHour()).withMinute(0).withSecond(0).withNano(0);
-        for (int i = 1; i <= 70; i++) {
+        for (int i = 1; i <= 700; i++) {
             freeSlots.add(new TimeSlot(currentTime,
                     currentTime.withHour(windowEnd.getHour()).withMinute(0).withSecond(0).withNano(0)));
             currentTime = currentTime.plusDays(1);

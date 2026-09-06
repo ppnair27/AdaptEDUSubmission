@@ -236,7 +236,7 @@ public class Task {
         if (hours <= 0) {
             return 10;
         } else {
-            return 300.0 / (hours + 1) - 1;
+            return (estimatedTime / 60.0 * 300) / (hours + 1) - 1;
         }
     }
 
@@ -249,9 +249,10 @@ public class Task {
     public void calculatePriorityScore(LocalDateTime day) {
         long hoursUntilDue = getHoursUntilDue(day);
         if (hoursUntilDue <= 0) {
-            priorityScore = userPriority + 2 * getTimePressure(day) - session / (getTimePressure(day) + 2) + 1000;
+            priorityScore = userPriority + 2 * getTimePressure(day) - 10 * session + 1000; // / (getTimePressure(day) +
+                                                                                           // 2)
         } else {
-            priorityScore = userPriority + 2 * getTimePressure(day) - session / (getTimePressure(day) + 2);
+            priorityScore = userPriority + 2 * getTimePressure(day) - 10 * session; // / (getTimePressure(day) + 2)
         }
     }
 
@@ -263,9 +264,10 @@ public class Task {
         LocalDateTime now = LocalDateTime.now();
         long hoursUntilDue = getHoursUntilDue(now);
         if (hoursUntilDue <= 0) {
-            priorityScore = userPriority + 2 * getTimePressure(now) - session / (getTimePressure(now) + 2) + 1000;
+            priorityScore = userPriority + 2 * getTimePressure(now) - 10 * session + 1000; // / (getTimePressure(now) +
+                                                                                           // 2)
         } else {
-            priorityScore = userPriority + 2 * getTimePressure(now) - session / (getTimePressure(now) + 2);
+            priorityScore = userPriority + 2 * getTimePressure(now) - 10 * session; // / (getTimePressure(now) + 2)
         }
     }
 
