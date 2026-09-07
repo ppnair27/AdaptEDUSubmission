@@ -789,6 +789,18 @@ function setupListeners() {
             nameInput.value = '';
         });
     }
+
+    // Schedule Alert Modal listeners
+    const alertModal = document.getElementById('schedule-alert-modal');
+    const confirmAlertBtn = document.getElementById('confirm-alert-btn');
+    const closeAlertBtn = document.getElementById('close-alert-modal');
+    if (confirmAlertBtn) confirmAlertBtn.addEventListener('click', closeScheduleAlert);
+    if (closeAlertBtn) closeAlertBtn.addEventListener('click', closeScheduleAlert);
+    if (alertModal) {
+        alertModal.addEventListener('click', e => {
+            if (e.target === alertModal) closeScheduleAlert();
+        });
+    }
 }
 
 // ── Auth Modal & User Session Handlers ─────────────────────────────────────
@@ -1111,25 +1123,87 @@ const alertQueue = [];
 const acknowledgedOverloadDays = new Set();
 const acknowledgedEventOverlapPairs = new Set();
 
-function showScheduleAlert({ icon = '⚠️', title = 'Schedule Notice', message, recommendation }) {
+function showScheduleAlert({
+    icon = '⚠️',
+    badge = 'SCHEDULE NOTICE',
+    title = 'Schedule Recommendation',
+    message,
+    recommendation,
+    recommendations = [],
+    metrics = [],
+    theme = 'default'
+}) {
     const modal = document.getElementById('schedule-alert-modal');
     if (!modal) return;
 
     // If modal is currently displayed, queue the alert so it appears sequentially
     if (!modal.classList.contains('hidden')) {
-        alertQueue.push({ icon, title, message, recommendation });
+        alertQueue.push({ icon, badge, title, message, recommendation, recommendations, metrics, theme });
         return;
     }
 
     const iconEl = document.getElementById('alert-modal-icon');
+    const badgeEl = document.getElementById('alert-modal-badge');
+    const iconBadgeEl = document.getElementById('alert-modal-icon-badge');
     const titleEl = document.getElementById('alert-modal-title');
     const msgEl = document.getElementById('alert-modal-message');
-    const recEl = document.getElementById('alert-modal-recommendation-text');
+    const recContentEl = document.getElementById('alert-modal-recommendation-content');
+    const recTextEl = document.getElementById('alert-modal-recommendation-text');
+    const metricsStrip = document.getElementById('alert-metrics-strip');
 
     if (iconEl) iconEl.textContent = icon;
+    if (badgeEl) {
+        badgeEl.textContent = badge.toUpperCase();
+        badgeEl.className = `alert-modal-badge ${theme === 'sleep' ? 'badge-sleep' : theme === 'overload' ? 'badge-overload' : ''}`;
+    }
+    if (iconBadgeEl) {
+        iconBadgeEl.className = `alert-modal-icon-badge ${theme === 'sleep' ? 'theme-sleep' : theme === 'overload' ? 'theme-overload' : ''}`;
+    }
     if (titleEl) titleEl.textContent = title;
-    if (msgEl) msgEl.textContent = message;
-    if (recEl) recEl.textContent = recommendation;
+    if (msgEl) msgEl.innerHTML = message;
+
+    // Metrics strip
+    if (metricsStrip) {
+        if (metrics && metrics.length > 0) {
+            metricsStrip.innerHTML = metrics.map(m => `
+                <div class="alert-metric-card">
+                    <span class="alert-metric-label">${escapeHtml(m.label)}</span>
+                    <span class="alert-metric-val ${m.variant ? 'val-' + m.variant : ''}">${escapeHtml(m.value)}</span>
+                </div>
+            `).join('');
+            metricsStrip.classList.remove('hidden');
+        } else {
+            metricsStrip.innerHTML = '';
+            metricsStrip.classList.add('hidden');
+        }
+    }
+
+    // Recommendation list
+    let recList = (Array.isArray(recommendations) && recommendations.length > 0)
+        ? recommendations
+        : (typeof recommendation === 'string' ? recommendation.split('\n').filter(s => s.trim()) : []);
+
+    if (recContentEl) {
+        if (recList.length > 0) {
+            recContentEl.innerHTML = recList.map(rec => {
+                const clean = rec.replace(/^[•\-\*]\s*/, '');
+                return `
+                    <div class="alert-rec-item">
+                        <span class="alert-rec-item-bullet"></span>
+                        <div class="alert-rec-item-text">${clean}</div>
+                    </div>
+                `;
+            }).join('');
+            recContentEl.classList.remove('hidden');
+            if (recTextEl) recTextEl.classList.add('hidden');
+        } else if (recommendation && recTextEl) {
+            recTextEl.textContent = recommendation;
+            recTextEl.classList.remove('hidden');
+            recContentEl.classList.add('hidden');
+        }
+    } else if (recTextEl && recommendation) {
+        recTextEl.textContent = recommendation;
+    }
 
     modal.classList.remove('hidden');
 }
@@ -1160,12 +1234,23 @@ function checkEventOverlaps(newEvent = null) {
                 const pairKey = [newEvent.id, ev.id].sort().join('--');
                 acknowledgedEventOverlapPairs.add(pairKey);
             });
-            const conflictNames = conflicts.map(ev => `"${ev.name}" (${fmtTime(ev.startTime)} – ${fmtTime(ev.endTime)})`).join(', ');
+            const conflictNames = conflicts.map(ev => `<strong>"${escapeHtml(ev.name)}"</strong> (${fmtTime(ev.startTime)} – ${fmtTime(ev.endTime)})`).join(', ');
             showScheduleAlert({
                 icon: '⚠️',
-                title: 'Event Overlap Notice',
-                message: `Your event "${newEvent.name}" (${fmtTime(newEvent.startTime)} – ${fmtTime(newEvent.endTime)}) overlaps with ${conflictNames} on ${newEvent.startTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}.`,
-                recommendation: 'Because these events occur during the same time window, you may be double-booked. We recommend adjusting the event start or end times to optimize your schedule.'
+                theme: 'overload',
+                badge: 'Scheduling Conflict',
+                title: 'Event Overlap Detected',
+                message: `Your event <strong>"${escapeHtml(newEvent.name)}"</strong> (${fmtTime(newEvent.startTime)} – ${fmtTime(newEvent.endTime)}) conflicts with ${conflictNames} on ${newEvent.startTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}.`,
+                metrics: [
+                    { label: 'New Event', value: newEvent.name },
+                    { label: 'Conflicts', value: `${conflicts.length} Event${conflicts.length > 1 ? 's' : ''}`, variant: 'alert' },
+                    { label: 'Date', value: newEvent.startTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }
+                ],
+                recommendations: [
+                    '<strong>Stagger start times:</strong> Shift one event so it begins once the other concludes.',
+                    '<strong>Trim event duration:</strong> Shorten non-essential meeting time to eliminate overlap.',
+                    '<strong>Rebalance to open slots:</strong> Reschedule flexible activities to another open time window.'
+                ]
             });
             return;
         }
@@ -1182,9 +1267,19 @@ function checkEventOverlaps(newEvent = null) {
                     acknowledgedEventOverlapPairs.add(pairKey);
                     showScheduleAlert({
                         icon: '⚠️',
-                        title: 'Event Overlap Notice',
-                        message: `Event "${a.name}" (${fmtTime(a.startTime)} – ${fmtTime(a.endTime)}) and "${b.name}" (${fmtTime(b.startTime)} – ${fmtTime(b.endTime)}) overlap on ${a.startTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}.`,
-                        recommendation: 'These events occur at the same time and may create a scheduling conflict. We recommend adjusting the event times to optimize your daily schedule.'
+                        theme: 'overload',
+                        badge: 'Scheduling Conflict',
+                        title: 'Event Overlap Detected',
+                        message: `Events <strong>"${escapeHtml(a.name)}"</strong> (${fmtTime(a.startTime)} – ${fmtTime(a.endTime)}) and <strong>"${escapeHtml(b.name)}"</strong> (${fmtTime(b.startTime)} – ${fmtTime(b.endTime)}) overlap on ${a.startTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}.`,
+                        metrics: [
+                            { label: 'Event A', value: a.name },
+                            { label: 'Event B', value: b.name },
+                            { label: 'Date', value: a.startTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }
+                        ],
+                        recommendations: [
+                            '<strong>Adjust start or end times:</strong> Stagger the two events so they do not conflict.',
+                            '<strong>Shift to an open slot:</strong> Move secondary activities to a day with lighter commitments.'
+                        ]
                     });
                     return;
                 }
@@ -1237,9 +1332,10 @@ function checkDailyWorkloadAndSleepRisk() {
         const sleepInvasion = dayBlocks.some(b => isItemInSleep(b.startTime, b.endTime)) ||
                               dayEvents.some(ev => isItemInSleep(ev.startTime, ev.endTime));
 
-        const isOverloaded = totalDemandMins > wakingMinutes || sleepInvasion;
+        const hasOverload = totalDemandMins > wakingMinutes;
+        const hasSleepConflict = sleepInvasion;
 
-        if (isOverloaded) {
+        if (hasOverload || hasSleepConflict) {
             if (!acknowledgedOverloadDays.has(dayKey)) {
                 acknowledgedOverloadDays.add(dayKey);
 
@@ -1254,26 +1350,71 @@ function checkDailyWorkloadAndSleepRisk() {
                     const disp = h % 12 || 12;
                     return `${disp}:00 ${p}`;
                 };
+                const sleepWindowStr = `${fmtHour(END_HOUR)} – ${fmtHour(START_HOUR)}`;
 
-                let detail = `On ${dayName}, you have approximately ${totalHoursStr} hours of commitments (${eventHoursStr}h events + ${taskHoursStr}h task work), which exceeds your available waking time of ${wakingHoursStr} hours.`;
-                if (sleepInvasion) {
-                    detail += ` Scheduled blocks also extend into your sleep hours (${fmtHour(END_HOUR)} – ${fmtHour(START_HOUR)}).`;
+                if (hasOverload && hasSleepConflict) {
+                    showScheduleAlert({
+                        icon: '⏳',
+                        theme: 'overload',
+                        badge: 'Overload & Sleep Risk',
+                        title: 'Daily Schedule Overload',
+                        message: `On <strong>${dayName}</strong>, your commitments total <strong>${totalHoursStr} hours</strong> (${eventHoursStr}h events + ${taskHoursStr}h task work), which exceeds your available waking time of <strong>${wakingHoursStr} hours</strong>.<br><br>Additionally, scheduled blocks extend into your sleep window (<strong>${sleepWindowStr}</strong>). Without adjustments, completing all tasks will cut into your sleep boundaries.`,
+                        metrics: [
+                            { label: 'Commitments', value: `${totalHoursStr}h`, variant: 'danger' },
+                            { label: 'Waking Hours', value: `${wakingHoursStr}h` },
+                            { label: 'Sleep Window', value: sleepWindowStr, variant: 'alert' }
+                        ],
+                        recommendations: [
+                            '<strong>Reschedule flexible tasks:</strong> Shift non-urgent tasks to days with lighter loads.',
+                            '<strong>Scale task estimates:</strong> Use the effort adjustment tool to refine task durations.',
+                            '<strong>Protect sleep hours:</strong> Move late-evening sessions forward to ensure full rest.'
+                        ]
+                    });
+                } else if (hasOverload) {
+                    const excessHoursStr = ((totalDemandMins - wakingMinutes) / 60).toFixed(1).replace('.0', '');
+                    showScheduleAlert({
+                        icon: '⏳',
+                        theme: 'overload',
+                        badge: 'Capacity Exceeded',
+                        title: 'Daily Schedule Overload',
+                        message: `On <strong>${dayName}</strong>, you have approximately <strong>${totalHoursStr} hours</strong> of commitments (${eventHoursStr}h events + ${taskHoursStr}h task work), which exceeds your available waking time of <strong>${wakingHoursStr} hours</strong> by <strong>${excessHoursStr} hours</strong>.`,
+                        metrics: [
+                            { label: 'Commitments', value: `${totalHoursStr}h`, variant: 'danger' },
+                            { label: 'Capacity', value: `${wakingHoursStr}h` },
+                            { label: 'Deficit', value: `-${excessHoursStr}h`, variant: 'danger' }
+                        ],
+                        recommendations: [
+                            '<strong>Spread tasks across days:</strong> Move flexible assignments into open slots later this week.',
+                            '<strong>Chunk larger tasks:</strong> Divide multi-hour work into smaller 45–60 minute sessions.',
+                            '<strong>Prioritize essentials:</strong> Focus on urgent deadlines and defer low-priority items.'
+                        ]
+                    });
+                } else {
+                    // hasSleepConflict ONLY (the case from user's screenshot)
+                    showScheduleAlert({
+                        icon: '🌙',
+                        theme: 'sleep',
+                        badge: 'Sleep Window Conflict',
+                        title: 'Sleep Hours Conflict',
+                        message: `On <strong>${dayName}</strong>, your total commitments (${totalHoursStr} hours: ${eventHoursStr}h events + ${taskHoursStr}h task work) fit within your waking capacity of ${wakingHoursStr} hours. However, some scheduled items extend into your designated sleep hours (<strong>${sleepWindowStr}</strong>).`,
+                        metrics: [
+                            { label: 'Commitments', value: `${totalHoursStr}h` },
+                            { label: 'Waking Hours', value: `${wakingHoursStr}h` },
+                            { label: 'Sleep Window', value: sleepWindowStr, variant: 'alert' }
+                        ],
+                        recommendations: [
+                            '<strong>Shift evening items earlier:</strong> Move late-running commitments forward into open daytime slots.',
+                            '<strong>Adjust sleep schedule:</strong> If your sleep routine has changed, update wake/sleep hours in Settings.',
+                            '<strong>Protect rest boundaries:</strong> Keep study and task blocks inside your active waking window.'
+                        ]
+                    });
                 }
-                detail += ` Without adjustments, you won't have enough time to finish your tasks today without cutting into your sleep constraints or having to drop a task.`;
-
-                showScheduleAlert({
-                    icon: '⏳',
-                    title: 'Daily Schedule Overload',
-                    message: detail,
-                    recommendation: 'We recommend adjusting your task time estimates, rescheduling some tasks across upcoming days, or shortening non-essential events so you can optimize your time better without sacrificing your sleep.'
-                });
                 break;
             }
         } else {
             acknowledgedOverloadDays.delete(dayKey);
         }
     }
-
 }
 
 function buildApiUrl(path) {

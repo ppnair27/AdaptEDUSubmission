@@ -9,7 +9,7 @@
     <!-- Responsive design meta tag -->
     <title>AdaptEDU</title>
     <!-- Page title -->
-    <link rel="stylesheet" href="styles2.css?v=2.4">
+    <link rel="stylesheet" href="styles2.css?v=2.5">
     <!-- Link to external CSS stylesheet -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <!-- Preconnect to Google Fonts for faster loading -->
@@ -380,23 +380,39 @@
         <div class="modal-content alert-modal-content">
             <div class="modal-header alert-modal-header">
                 <div class="alert-title-wrapper">
-                    <span class="alert-modal-icon" id="alert-modal-icon">⚠️</span>
-                    <h2 id="alert-modal-title">Schedule Recommendation</h2>
+                    <div class="alert-modal-icon-badge" id="alert-modal-icon-badge">
+                        <span class="alert-modal-icon" id="alert-modal-icon">⚠️</span>
+                    </div>
+                    <div class="alert-title-text-group">
+                        <span class="alert-modal-badge" id="alert-modal-badge">SCHEDULE NOTICE</span>
+                        <h2 id="alert-modal-title">Schedule Recommendation</h2>
+                    </div>
                 </div>
                 <button class="close-btn" id="close-alert-modal">&times;</button>
             </div>
             <div class="alert-modal-body">
-                <p class="alert-modal-message" id="alert-modal-message"></p>
+                <!-- Key Metrics Summary Strip -->
+                <div class="alert-metrics-strip hidden" id="alert-metrics-strip"></div>
+
+                <!-- Analysis Message Card -->
+                <div class="alert-message-card">
+                    <p class="alert-modal-message" id="alert-modal-message"></p>
+                </div>
+
+                <!-- Actionable Recommendations Box -->
                 <div class="alert-recommendation-box">
                     <div class="alert-rec-header">
-                        <span class="alert-rec-icon">💡</span>
-                        <span>Recommendation</span>
+                        <span class="alert-rec-icon-wrap">💡</span>
+                        <span>Recommended Actions</span>
                     </div>
-                    <p id="alert-modal-recommendation-text" class="alert-rec-text"></p>
+                    <div id="alert-modal-recommendation-content" class="alert-rec-content">
+                        <!-- Populated with clean recommendation items -->
+                    </div>
+                    <p id="alert-modal-recommendation-text" class="alert-rec-text hidden"></p>
                 </div>
             </div>
             <div class="modal-footer alert-modal-footer">
-                <button type="button" class="accent-btn" id="confirm-alert-btn">I Understand</button>
+                <button type="button" class="accent-btn alert-confirm-btn" id="confirm-alert-btn">I Understand</button>
             </div>
         </div>
     </div>
@@ -520,7 +536,7 @@
     </div>
 
     <!-- JavaScript files: Main script, API integration, and algorithm -->
-    <script src="script2.js?v=2.4"></script>
+    <script src="script2.js?v=2.5"></script>
     <!-- Main JavaScript file for UI interactions -->
 </body>
 </html>
