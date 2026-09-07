@@ -275,7 +275,7 @@ public class Scheduler {
         try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
             String line = br.readLine(); // Skip header
             while ((line = br.readLine()) != null) {
-                String[] values = line.split(",", -1);
+                String[] values = TaskManager.parseCsvLine(line);
                 if (values.length >= 7) {
                     try {
                         LocalDateTime start = LocalDateTime.parse(values[1]);
