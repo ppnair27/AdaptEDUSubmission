@@ -54,7 +54,7 @@ class ScheduleRequest {
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "*")
+@CrossOrigin(originPatterns = "*", allowCredentials = "true")
 public class AdaptEDUController {
 
     private final SupabaseService supabaseService;

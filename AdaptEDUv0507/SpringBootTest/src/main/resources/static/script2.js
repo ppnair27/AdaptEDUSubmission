@@ -134,7 +134,7 @@ let pendingVerificationEmail = '';
 
 function getStoredUser() {
     try {
-        const raw = sessionStorage.getItem('adaptedu.auth_user');
+        const raw = sessionStorage.getItem('adaptedu.auth_user') || localStorage.getItem('adaptedu.auth_user');
         return raw ? JSON.parse(raw) : null;
     } catch (e) {
         return null;
@@ -268,6 +268,7 @@ async function checkOAuthCallback() {
                     if (data.status === 'ok') {
                         const user = { userId: data.userId, email: data.email, username: data.username };
                         sessionStorage.setItem('adaptedu.auth_user', JSON.stringify(user));
+                        localStorage.setItem('adaptedu.auth_user', JSON.stringify(user));
                         await initializeUserSession(user);
                         return true;
                     } else {
@@ -942,6 +943,7 @@ function setupAuthListeners() {
                 // Successful login
                 const user = { userId: data.userId, email: data.email, username: data.username };
                 sessionStorage.setItem('adaptedu.auth_user', JSON.stringify(user));
+                localStorage.setItem('adaptedu.auth_user', JSON.stringify(user));
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Sign In';
                 document.getElementById('login-password').value = '';
@@ -1065,6 +1067,7 @@ function setupAuthListeners() {
 
 function handleLogout() {
     sessionStorage.removeItem('adaptedu.auth_user');
+    localStorage.removeItem('adaptedu.auth_user');
     currentUser = null;
     tasks = [];
     events = [];
