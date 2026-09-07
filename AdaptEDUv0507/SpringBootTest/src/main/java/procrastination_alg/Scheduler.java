@@ -190,7 +190,8 @@ public class Scheduler {
         // 4. Combine fixed events with newly scheduled task events
         List<Event> fullSchedule = new ArrayList<>(fixedEvents);
         fullSchedule.addAll(scheduledTaskEvents);
-        fullSchedule.sort(Comparator.comparing(Event::getStartTime, Comparator.nullsLast(Comparator.naturalOrder())));
+        fullSchedule.sort(Comparator.comparing(event -> event.getStartTime(),
+            Comparator.nullsLast(Comparator.naturalOrder())));
 
         if (!remainingTimes.isEmpty()) {
             System.out.println("\nWarning: Could not fully schedule all tasks. Unscheduled remaining time:");

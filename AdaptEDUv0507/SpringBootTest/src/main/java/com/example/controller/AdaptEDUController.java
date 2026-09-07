@@ -1,17 +1,16 @@
 package com.example.controller;
 
 import org.springframework.web.bind.annotation.*;
-import procrastination_alg.*;
+import procrastination_alg.Event;
+import procrastination_alg.ProcrastinationAlgorithm;
+import procrastination_alg.Scheduler;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 class TaskDTO {
@@ -134,47 +133,4 @@ public class AdaptEDUController {
         return inModule;
     }
 
-    private static void writeTasksCsv(List<TaskDTO> tasks, Path path) throws IOException {
-        StringBuilder out = new StringBuilder();
-        out.append("name,category,dueDate,userPriority,estimatedTime,completed,description,minutesSpent,archived,archivedAt\n");
-        for (TaskDTO task : tasks) {
-            out.append(csv(task.name)).append(',')
-                    .append(csv(task.category)).append(',')
-                    .append(csv(task.dueDate)).append(',')
-                    .append(task.userPriority).append(',')
-                    .append(task.estimatedTime).append(',')
-                    .append(task.completed).append(',')
-                    .append(csv(task.description)).append(',')
-                    .append(task.minutesSpent).append(',')
-                    .append(task.archived).append(',')
-                    .append(task.archivedAt == null ? "" : task.archivedAt)
-                    .append('\n');
-        }
-        Files.writeString(path, out.toString(), StandardCharsets.UTF_8);
-    }
-
-    private static void writeEventsCsv(List<EventDTO> events, Path path) throws IOException {
-        StringBuilder out = new StringBuilder();
-        out.append("name,startTime,endTime,location,status,category,reminderEnabled,reminderEveryDays,archived,archivedAt\n");
-        for (EventDTO event : events) {
-            out.append(csv(event.name)).append(',')
-                    .append(csv(event.startTime)).append(',')
-                    .append(csv(event.endTime)).append(',')
-                    .append(csv(event.location)).append(',')
-                    .append(csv(event.status)).append(',')
-                    .append(csv(event.category)).append(',')
-                    .append(event.reminderEnabled).append(',')
-                    .append(event.reminderEveryDays == null ? "" : event.reminderEveryDays).append(',')
-                    .append(event.archived).append(',')
-                    .append(event.archivedAt == null ? "" : event.archivedAt)
-                    .append('\n');
-        }
-        Files.writeString(path, out.toString(), StandardCharsets.UTF_8);
-    }
-
-    private static String csv(String value) {
-        if (value == null) return "";
-        String escaped = value.replace("\"", "\"\"");
-        return "\"" + escaped + "\"";
-    }
 }

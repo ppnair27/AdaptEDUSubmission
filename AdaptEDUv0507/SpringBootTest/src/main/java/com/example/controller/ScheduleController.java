@@ -1,13 +1,12 @@
 package com.example.controller;
 import procrastination_alg.SupabaseService;
 import procrastination_alg.Event;
+import procrastination_alg.Scheduler;
 
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.beans.factory.annotation.Autowired;
-import procrastination_alg.SupabaseService; // Import the service from its original package
-import procrastination_alg.Event;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
@@ -43,6 +42,10 @@ public class ScheduleController {
             System.out.println("📦 RECEIVED EVENTS COUNT: " + events.size());
 
             supabaseService.saveState(tasks, events);
+            Map<String, String> successResponse = new HashMap<>();
+            successResponse.put("status", "ok");
+            successResponse.put("message", "State saved successfully");
+            return successResponse;
         } catch (Exception e) {
             System.out.println("🚨 CRITICAL SYNC ERROR: " + e.getMessage());
             e.printStackTrace();
@@ -51,6 +54,7 @@ public class ScheduleController {
             errorResponse.put("status", "error");
             errorResponse.put("message", "Failed to save to Supabase: " + e.getMessage());
             return errorResponse;
+        }
         }
     
     /**

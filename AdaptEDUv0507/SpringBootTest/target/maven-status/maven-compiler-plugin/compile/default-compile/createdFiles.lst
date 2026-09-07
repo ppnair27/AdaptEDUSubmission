@@ -1,0 +1,17 @@
+procrastination_alg/ProcrastinationAlgorithm.class
+procrastination_alg/SupabaseService$1.class
+procrastination_alg/Task.class
+procrastination_alg/TaskManager.class
+com/example/controller/TaskDTO.class
+com/example/controller/CsvSyncRequest.class
+com/example/controller/ScheduleRequest.class
+com/example/controller/ScheduleController.class
+procrastination_alg/AdaptEduApplication.class
+com/example/controller/EventDTO.class
+procrastination_alg/Scheduler.class
+procrastination_alg/SupabaseService.class
+com/example/config/CorsConfig$1.class
+procrastination_alg/Event.class
+com/example/controller/AdaptEDUController.class
+procrastination_alg/Scheduler$TimeSlot.class
+com/example/config/CorsConfig.class

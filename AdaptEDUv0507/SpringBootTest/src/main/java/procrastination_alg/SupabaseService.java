@@ -299,20 +299,6 @@ public class SupabaseService {
         return "";
     }
 
-    private int intValue(Object value, int fallback) {
-        if (value == null) {
-            return fallback;
-        }
-        try {
-            if (value instanceof Number number) {
-                return number.intValue();
-            }
-            return Integer.parseInt(value.toString());
-        } catch (Exception e) {
-            return fallback;
-        }
-    }
-
     private int intValue(Map<String, Object> row, int fallback, String... keys) {
         for (String key : keys) {
             Object value = row.get(key);
@@ -329,16 +315,6 @@ public class SupabaseService {
             }
         }
         return fallback;
-    }
-
-    private boolean booleanValue(Object value, boolean fallback) {
-        if (value == null) {
-            return fallback;
-        }
-        if (value instanceof Boolean bool) {
-            return bool;
-        }
-        return Boolean.parseBoolean(value.toString());
     }
 
     private boolean booleanValue(Map<String, Object> row, boolean fallback, String... keys) {
