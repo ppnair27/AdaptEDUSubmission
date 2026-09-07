@@ -9,7 +9,7 @@
     <!-- Responsive design meta tag -->
     <title>AdaptEDU</title>
     <!-- Page title -->
-    <link rel="stylesheet" href="styles2.css?v=2.3">
+    <link rel="stylesheet" href="styles2.css?v=2.4">
     <!-- Link to external CSS stylesheet -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <!-- Preconnect to Google Fonts for faster loading -->
@@ -86,12 +86,13 @@
             <aside class="sidebar">
                 <!-- Calendar categories section -->
                 <div class="sidebar-section">
-                    <div class="section-label">CALENDARS</div>
-                    <div class="category-item"><span class="dot school"></span>School</div>
-                    <div class="category-item"><span class="dot work"></span>Work</div>
-                    <div class="category-item"><span class="dot personal"></span>Personal</div>
-                    <div class="category-item"><span class="dot extracurricular"></span>Extracurricular</div>
-                    <div class="category-item"><span class="dot other"></span>Other</div>
+                    <div class="sidebar-section-header">
+                        <div class="section-label">CATEGORIES</div>
+                        <button type="button" class="category-edit-btn" id="edit-categories-btn" title="Manage Categories">Edit</button>
+                    </div>
+                    <div id="sidebar-category-list" class="category-list">
+                        <!-- Populated dynamically -->
+                    </div>
                 </div>
                 <!-- Spacer for layout -->
                 <div class="sidebar-spacer"></div>
@@ -103,30 +104,8 @@
 
                     <div class="category-bars">
                         <div class="section-label">CATEGORY LOAD</div>
-
-                        <div class="category-bar-row" data-cat="school">
-                            <div class="category-bar-head"><span class="dot school"></span><span>School</span><span class="bar-count" id="bar-count-school">0</span></div>
-                            <div class="category-bar-track"><div class="category-bar-fill school" id="cat-bar-school"></div></div>
-                        </div>
-
-                        <div class="category-bar-row" data-cat="work">
-                            <div class="category-bar-head"><span class="dot work"></span><span>Work</span><span class="bar-count" id="bar-count-work">0</span></div>
-                            <div class="category-bar-track"><div class="category-bar-fill work" id="cat-bar-work"></div></div>
-                        </div>
-
-                        <div class="category-bar-row" data-cat="personal">
-                            <div class="category-bar-head"><span class="dot personal"></span><span>Personal</span><span class="bar-count" id="bar-count-personal">0</span></div>
-                            <div class="category-bar-track"><div class="category-bar-fill personal" id="cat-bar-personal"></div></div>
-                        </div>
-
-                        <div class="category-bar-row" data-cat="extracurricular">
-                            <div class="category-bar-head"><span class="dot extracurricular"></span><span>Extracurricular</span><span class="bar-count" id="bar-count-extracurricular">0</span></div>
-                            <div class="category-bar-track"><div class="category-bar-fill extracurricular" id="cat-bar-extracurricular"></div></div>
-                        </div>
-
-                        <div class="category-bar-row" data-cat="other">
-                            <div class="category-bar-head"><span class="dot other"></span><span>Other</span><span class="bar-count" id="bar-count-other">0</span></div>
-                            <div class="category-bar-track"><div class="category-bar-fill other" id="cat-bar-other"></div></div>
+                        <div id="sidebar-category-bars">
+                            <!-- Populated dynamically -->
                         </div>
                     </div>
                 </div>
@@ -541,7 +520,7 @@
     </div>
 
     <!-- JavaScript files: Main script, API integration, and algorithm -->
-    <script src="script2.js?v=2.3"></script>
+    <script src="script2.js?v=2.4"></script>
     <!-- Main JavaScript file for UI interactions -->
 </body>
 </html>

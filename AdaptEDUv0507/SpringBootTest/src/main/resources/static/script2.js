@@ -1414,8 +1414,9 @@ async function fetchScheduledBlocks() {
 
         // Format local state data into a payload the backend expects
         const payload = {
+            userId: currentUser ? currentUser.userId : null,
             tasks: tasks.map(t => ({
-                id: t.id, // 👈 ADD THIS LINE
+                id: t.id,
                 name: t.name,
                 category: t.category,
                 dueDate: formatLocalISO(t.dueDate),
@@ -1426,7 +1427,7 @@ async function fetchScheduledBlocks() {
                 completed: t.completed
             })),
             events: events.map(ev => ({
-                id: ev.id, // 👈 ADD THIS LINE
+                id: ev.id,
                 name: ev.name,
                 startTime: formatLocalISO(ev.startTime),
                 endTime: formatLocalISO(ev.endTime),
@@ -1434,15 +1435,14 @@ async function fetchScheduledBlocks() {
                 status: ev.status,
                 category: ev.category
             })),
-            scheduleStart: formatLocalISO(currentDate), // 👈 ADDED THIS
-            scheduleEnd: formatLocalISO(windowEnd)     // 👈 ADDED THIS
+            scheduleStart: formatLocalISO(currentDate),
+            scheduleEnd: formatLocalISO(windowEnd)
         };
 
-        const response = await fetch('/api/schedule', {
+        const response = await fetch(buildApiUrl('/api/schedule'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload), // <-- THIS FIXES THE 400 ERROR
-
+            body: JSON.stringify(payload),
             cache: 'no-store'
         });
 
@@ -1522,8 +1522,12 @@ function updateStats() {
     if (overdueEl) overdueEl.textContent = active.filter(t => t.isOverdue()).length;
     if (eventsEl) eventsEl.textContent  = events.filter(e => !e.archived).length;
 
-    const categories = ['school', 'work', 'personal', 'extracurricular', 'other'];
-    const counts = Object.fromEntries(categories.map(c => [c, 0]));
+    updateCategoryBars();
+}
+
+function updateCategoryBars() {
+    const counts = {};
+    categoriesList.forEach(c => { counts[c.id] = 0; });
 
     tasks.filter(t => !t.archived).forEach(t => {
         const category = normCat(t.category);
@@ -1535,15 +1539,177 @@ function updateStats() {
     });
 
     const maxCount = Math.max(1, ...Object.values(counts));
-    categories.forEach(category => {
-        const countEl = document.getElementById(`bar-count-${category}`);
-        const fillEl = document.getElementById(`cat-bar-${category}`);
+    categoriesList.forEach(category => {
+        const countEl = document.getElementById(`bar-count-${category.id}`);
+        const fillEl = document.getElementById(`cat-bar-${category.id}`);
         if (!countEl || !fillEl) return;
-        const count = counts[category] || 0;
+        const count = counts[category.id] || 0;
         countEl.textContent = String(count);
         const pct = Math.max(6, Math.round((count / maxCount) * 100));
         fillEl.style.width = count === 0 ? '0%' : `${pct}%`;
     });
+}
+
+function renderSidebarCategories() {
+    const listEl = document.getElementById('sidebar-category-list');
+    const barsEl = document.getElementById('sidebar-category-bars');
+    if (!listEl || !barsEl) return;
+
+    listEl.innerHTML = '';
+    barsEl.innerHTML = '';
+
+    categoriesList.forEach(cat => {
+        // Sidebar Category Item
+        const itemEl = document.createElement('div');
+        const isActive = activeCategoryFilter === cat.id;
+        itemEl.className = `category-item${isActive ? ' active-filter' : ''}`;
+        itemEl.dataset.category = cat.id;
+        itemEl.title = isActive ? `Active filter: ${cat.name} (click to clear)` : `Filter by ${cat.name}`;
+        itemEl.innerHTML = `
+            <div class="category-item-main">
+                <span class="dot" style="background: ${cat.color};"></span>
+                <span>${escapeHtml(cat.name)}</span>
+            </div>
+            ${isActive ? '<span class="filter-clear-badge" title="Clear filter">✕</span>' : ''}
+        `;
+        itemEl.addEventListener('click', (e) => {
+            if (e.target.classList.contains('filter-clear-badge')) {
+                e.stopPropagation();
+                setCategoryFilter(null);
+                return;
+            }
+            setCategoryFilter(activeCategoryFilter === cat.id ? null : cat.id);
+        });
+        listEl.appendChild(itemEl);
+
+        // Sidebar Load Bar
+        const barRow = document.createElement('div');
+        barRow.className = `category-bar-row${isActive ? ' active-filter' : ''}`;
+        barRow.dataset.cat = cat.id;
+        barRow.title = isActive ? `Active filter: ${cat.name} (click to clear)` : `Filter by ${cat.name}`;
+        barRow.innerHTML = `
+            <div class="category-bar-head">
+                <span class="dot" style="background: ${cat.color};"></span>
+                <span>${escapeHtml(cat.name)}</span>
+                <span class="bar-count" id="bar-count-${cat.id}">0</span>
+            </div>
+            <div class="category-bar-track">
+                <div class="category-bar-fill" id="cat-bar-${cat.id}" style="background: ${cat.color};"></div>
+            </div>
+        `;
+        barRow.addEventListener('click', () => {
+            setCategoryFilter(activeCategoryFilter === cat.id ? null : cat.id);
+        });
+        barsEl.appendChild(barRow);
+    });
+
+    updateCategoryBars();
+}
+
+function setCategoryFilter(catId) {
+    activeCategoryFilter = catId;
+    renderSidebarCategories();
+    renderCalendar();
+    const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab || 'tasks';
+    renderTaskList(activeTab);
+}
+
+function populateCategoryDropdowns() {
+    const taskSelect = document.getElementById('task-category');
+    const eventSelect = document.getElementById('event-category');
+    
+    [taskSelect, eventSelect].forEach(sel => {
+        if (!sel) return;
+        const currentVal = sel.value;
+        sel.innerHTML = '';
+        categoriesList.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat.id;
+            opt.textContent = cat.name;
+            sel.appendChild(opt);
+        });
+        if (categoriesList.some(c => c.id === currentVal)) {
+            sel.value = currentVal;
+        } else if (categoriesList.length > 0) {
+            sel.value = categoriesList[0].id;
+        }
+    });
+}
+
+function renderManageCategoriesList() {
+    const container = document.getElementById('existing-categories-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    categoriesList.forEach(cat => {
+        const item = document.createElement('div');
+        item.className = 'category-manage-item';
+        const isOther = cat.id === 'other';
+        item.innerHTML = `
+            <div class="category-manage-info">
+                <span class="category-color-swatch" style="background: ${cat.color};"></span>
+                <span class="category-manage-name">${escapeHtml(cat.name)}</span>
+            </div>
+            ${isOther 
+                ? '<span style="font-size: 11px; color: var(--text-muted);">Default</span>' 
+                : `<button type="button" class="category-delete-btn" data-id="${cat.id}" title="Delete ${escapeHtml(cat.name)}">✕</button>`}
+        `;
+        if (!isOther) {
+            const delBtn = item.querySelector('.category-delete-btn');
+            if (delBtn) {
+                delBtn.addEventListener('click', () => {
+                    deleteCategory(cat.id);
+                });
+            }
+        }
+        container.appendChild(item);
+    });
+}
+
+function addCategory(name, color) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const id = trimmed.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+    if (!id) return;
+    if (categoriesList.some(c => c.id === id || c.name.toLowerCase() === trimmed.toLowerCase())) {
+        alert(`A category named "${trimmed}" already exists!`);
+        return;
+    }
+    categoriesList.push({
+        id: id,
+        name: trimmed,
+        color: color || '#82b1ff'
+    });
+    saveCategories();
+    populateCategoryDropdowns();
+    renderSidebarCategories();
+    renderManageCategoriesList();
+}
+
+function deleteCategory(catId) {
+    if (catId === 'other') return;
+    const cat = categoriesList.find(c => c.id === catId);
+    const catName = cat ? cat.name : catId;
+    if (!confirm(`Delete category "${catName}"? Any tasks or events in this category will be reassigned to "Other".`)) {
+        return;
+    }
+    tasks.forEach(t => {
+        if (normCat(t.category) === catId) t.category = 'other';
+    });
+    events.forEach(e => {
+        if (normCat(e.category) === catId) e.category = 'other';
+    });
+    categoriesList = categoriesList.filter(c => c.id !== catId);
+    if (activeCategoryFilter === catId) activeCategoryFilter = null;
+
+    saveCategories();
+    saveState();
+    populateCategoryDropdowns();
+    renderSidebarCategories();
+    renderManageCategoriesList();
+    renderCalendar();
+    const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab || 'tasks';
+    renderTaskList(activeTab);
 }
 
 // ══════════════════════════════════════════
@@ -1661,6 +1827,11 @@ function renderTimeGrid(numDays) {
         block.className = `cal-block ${catCls}${isTask ? ' task-block' : ''}`;
         if (isTask && item.completed) block.classList.add('completed-task-block');
         block.style.cssText = `top:${top}px;height:${height}px`;
+        if (catCls !== 'break' && !['school','work','personal','extracurricular','extra'].includes(catCls)) {
+            const cColor = catColor(item.category);
+            block.style.borderLeft = `3px solid ${cColor}`;
+            block.style.background = hexToRgba(cColor, 0.2);
+        }
         const timeStr = isTask && item.type === 'scheduledBlock'
             ? `${fmtTime(item.startTime)} – ${fmtTime(item.endTime)}`  // real slot
             : isTask
@@ -1707,7 +1878,7 @@ function renderTimeGrid(numDays) {
 
 
     scheduledBlocks
-        .filter(b => b.startTime >= gridStart && b.startTime < gridEnd)
+        .filter(b => b.startTime >= gridStart && b.startTime < gridEnd && (!activeCategoryFilter || normCat(b.category) === activeCategoryFilter))
         .forEach(b => {
             const colIdx    = numDays === 1 ? 0 : Math.min(numDays - 1, Math.max(0, Math.floor((b.startTime - gridStart) / 86400000)));
             const startFrac = timeFrac(b.startTime);
@@ -1775,8 +1946,8 @@ function renderMonthView() {
         const cellStart = new Date(cellDate); cellStart.setHours(0,0,0,0);
         const cellEnd   = new Date(cellDate); cellEnd.setHours(23,59,59,999);
 
-        const dayEvents = events.filter(ev => !ev.archived && ev.startTime >= cellStart && ev.startTime <= cellEnd);
-        const dayTasks  = scheduledBlocks.filter(b => b.startTime >= cellStart && b.startTime <= cellEnd);
+        const dayEvents = events.filter(ev => !ev.archived && ev.startTime >= cellStart && ev.startTime <= cellEnd && (!activeCategoryFilter || normCat(ev.category) === activeCategoryFilter));
+        const dayTasks  = scheduledBlocks.filter(b => b.startTime >= cellStart && b.startTime <= cellEnd && (!activeCategoryFilter || normCat(b.category) === activeCategoryFilter));
 
         const allItems = [...dayEvents, ...dayTasks];
         const MAX_SHOW = 3;
@@ -1785,6 +1956,11 @@ function renderMonthView() {
             const catCls = normCat(item.category);
             pill.className = `month-event-pill ${catCls}${item.type === 'task' ? ' task-pill' : ''}`;
             if (item.type === 'task' && item.completed) pill.classList.add('completed-task-pill');
+            if (catCls !== 'break' && !['school','work','personal','extracurricular','extra'].includes(catCls)) {
+                const cColor = catColor(item.category);
+                pill.style.borderLeft = `3px solid ${cColor}`;
+                pill.style.background = hexToRgba(cColor, 0.2);
+            }
             pill.textContent = item.name;
 
             let tooltip = item.name;
@@ -1828,8 +2004,8 @@ function renderTaskList(tab = 'tasks') {
 
     if (tab === 'archive') {
         subhead.textContent = 'Completed & Archived ↓';
-        const archivedTasks  = tasks.filter(t  => t.archived);
-        const archivedEvents = events.filter(ev => ev.archived);
+        const archivedTasks  = tasks.filter(t  => t.archived && (!activeCategoryFilter || normCat(t.category) === activeCategoryFilter));
+        const archivedEvents = events.filter(ev => ev.archived && (!activeCategoryFilter || normCat(ev.category) === activeCategoryFilter));
         const all = [
             ...archivedTasks.map(t  => ({ item: t,  archivedAt: t.archivedAt })),
             ...archivedEvents.map(ev => ({ item: ev, archivedAt: ev.archivedAt }))
@@ -1845,7 +2021,7 @@ function renderTaskList(tab = 'tasks') {
 
     if (tab === 'events') {
         subhead.textContent = 'Upcoming Events ↓';
-        const activeEvents = events.filter(ev => !ev.archived).sort((a, b) => a.startTime - b.startTime);
+        const activeEvents = events.filter(ev => !ev.archived && (!activeCategoryFilter || normCat(ev.category) === activeCategoryFilter)).sort((a, b) => a.startTime - b.startTime);
 
         if (activeEvents.length === 0) {
             el.innerHTML = '<div class="empty-state">No upcoming events.<br>Add an event to see it here.</div>';
@@ -1858,7 +2034,7 @@ function renderTaskList(tab = 'tasks') {
 
     // Tasks tab
     subhead.textContent = 'Priority Score ↓';
-    const activeTasks  = tasks.filter(t  => !t.archived).sort((a, b) => b.getPriorityScore() - a.getPriorityScore());
+    const activeTasks  = tasks.filter(t  => !t.archived && (!activeCategoryFilter || normCat(t.category) === activeCategoryFilter)).sort((a, b) => b.getPriorityScore() - a.getPriorityScore());
 
     if (activeTasks.length === 0) {
         el.innerHTML = `<div class="empty-state">${getAllClearMessage()}</div>`;

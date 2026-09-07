@@ -46,6 +46,7 @@ class CsvSyncRequest {
 }
 
 class ScheduleRequest {
+    public Long userId;
     public List<TaskDTO> tasks;
     public List<EventDTO> events;
     public String scheduleStart;
@@ -107,8 +108,12 @@ public class AdaptEDUController {
                 }
             }
 
-            System.out.println("🔄 AUTO-SYNCING TO SUPABASE BEFORE SCHEDULING...");
-            supabaseService.saveState(taskMaps, eventMaps);
+            System.out.println("🔄 AUTO-SYNCING TO SUPABASE BEFORE SCHEDULING..." + (request.userId != null ? (" for userId: " + request.userId) : ""));
+            if (request.userId != null) {
+                supabaseService.saveState(request.userId, taskMaps, eventMaps);
+            } else {
+                supabaseService.saveState(taskMaps, eventMaps);
+            }
             System.out.println("🚀 CLOUD SYNC SUCCESS: Data written to Supabase tables!");
 
         } catch (Exception e) {
@@ -127,6 +132,9 @@ public class AdaptEDUController {
                             LocalDateTime.parse(dto.startTime),
                             LocalDateTime.parse(dto.endTime)
                     );
+                    if (dto.category != null) {
+                        event.setCategory(dto.category);
+                    }
                     fixedEvents.add(event);
                 } catch (Exception e) {
                     System.err.println("Skipping invalid event formatting: " + dto.name);
@@ -140,14 +148,35 @@ public class AdaptEDUController {
         Scheduler scheduler = new Scheduler();
         List<Event> schedule = new ArrayList<>();
 
+        String taskCsvData = null;
         try {
-            String taskCsvData = supabaseService.exportTasksCsv().toString();
-            schedule = scheduler.generateSchedule(fixedEvents, start, end, taskCsvData);
-        } catch (IOException | InterruptedException e) {
+            taskCsvData = (request.userId != null)
+                    ? supabaseService.exportTasksCsv(request.userId).toString()
+                    : supabaseService.exportTasksCsv().toString();
+        } catch (Exception e) {
             System.err.println("🚨 ERROR LOADING TASKS FROM SUPABASE FOR SCHEDULER: " + e.getMessage());
-            if (e instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
+        }
+
+        // Fallback or direct use: if Supabase export is unavailable or request has direct tasks
+        if (taskCsvData == null && request.tasks != null && !request.tasks.isEmpty()) {
+            StringBuilder csv = new StringBuilder();
+            csv.append("name,category,dueDate,userPriority,estimatedTime,completed,maxSessionLength,description\n");
+            for (TaskDTO t : request.tasks) {
+                if (t.completed || t.archived) continue;
+                csv.append(TaskManager.escapeCsv(t.name)).append(",")
+                   .append(TaskManager.escapeCsv(t.category)).append(",")
+                   .append(TaskManager.escapeCsv(t.dueDate)).append(",")
+                   .append(t.userPriority).append(",")
+                   .append(t.estimatedTime).append(",")
+                   .append(t.completed).append(",")
+                   .append(t.maxSessionLength > 0 ? t.maxSessionLength : 120).append(",")
+                   .append(TaskManager.escapeCsv(t.description != null ? t.description : "")).append("\n");
             }
+            taskCsvData = csv.toString();
+        }
+
+        if (taskCsvData != null) {
+            schedule = scheduler.generateSchedule(fixedEvents, start, end, taskCsvData);
         }
 
         return schedule.stream().map(e -> {
@@ -156,6 +185,7 @@ public class AdaptEDUController {
             dto.startTime = e.getStartTime() != null ? e.getStartTime().toString() : null;
             dto.endTime = e.getEndTime() != null ? e.getEndTime().toString() : null;
             dto.status = e.getStatus();
+            dto.category = e.getCategory();
             return dto;
         }).collect(Collectors.toList());
     }

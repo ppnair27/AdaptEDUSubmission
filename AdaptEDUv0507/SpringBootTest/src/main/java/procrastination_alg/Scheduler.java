@@ -3,6 +3,8 @@ package procrastination_alg;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -272,7 +274,21 @@ public class Scheduler {
 
     public static List<Event> loadEventsFromCSV(String filePath) {
         List<Event> loadedEvents = new ArrayList<>();
-        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+        if (filePath == null || filePath.trim().isEmpty()) {
+            return loadedEvents;
+        }
+        Reader reader;
+        if (filePath.contains("\n") || filePath.contains(",")) {
+            reader = new StringReader(filePath);
+        } else {
+            try {
+                reader = new FileReader(filePath);
+            } catch (Exception e) {
+                System.err.println("Warning: Could not open file " + filePath + " (" + e.getMessage() + ")");
+                return loadedEvents;
+            }
+        }
+        try (BufferedReader br = new BufferedReader(reader)) {
             String line = br.readLine(); // Skip header
             while ((line = br.readLine()) != null) {
                 String[] values = TaskManager.parseCsvLine(line);

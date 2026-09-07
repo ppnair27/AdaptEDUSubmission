@@ -931,6 +931,203 @@ body.theme-yellow .off-hours-shade {
 }
 
 /* ══════════════════════════════════════════
+   CATEGORY MANAGEMENT & FILTERING
+   ══════════════════════════════════════════ */
+.sidebar-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.category-edit-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.category-edit-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--border);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.category-item {
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin: 2px 0;
+    transition: background 0.15s, color 0.15s, border 0.15s;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.category-item-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.category-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.category-item.active-filter {
+    background: rgba(79, 142, 247, 0.16);
+    border: 1px solid rgba(79, 142, 247, 0.35);
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.category-bar-row {
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 4px 6px;
+    transition: background 0.15s;
+}
+
+.category-bar-row:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.category-bar-row.active-filter {
+    background: rgba(79, 142, 247, 0.12);
+    border-left: 2px solid var(--accent);
+}
+
+.filter-clear-badge {
+    font-size: 11px;
+    color: var(--accent);
+    margin-left: 6px;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.filter-clear-badge:hover {
+    filter: brightness(1.2);
+}
+
+/* ── Manage Categories Modal ──────────────── */
+.categories-modal-content {
+    max-width: 480px;
+}
+
+.categories-modal-body {
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.existing-categories-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 8px;
+}
+
+.category-manage-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+
+.category-manage-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.category-color-swatch {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.category-manage-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.category-delete-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: 13px;
+    border-radius: 4px;
+    transition: color 0.15s, background 0.15s;
+}
+
+.category-delete-btn:hover {
+    color: var(--accent-red, #ef5350);
+    background: rgba(239, 83, 80, 0.12);
+}
+
+.add-category-section {
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+}
+
+.add-category-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.add-category-inputs {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.color-picker-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.color-picker-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+input[type="color"] {
+    -webkit-appearance: none;
+    border: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    background: transparent;
+}
+input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+input[type="color"]::-webkit-color-swatch {
+    border: 1px solid var(--border);
+    border-radius: 50%;
+}
+
+/* ══════════════════════════════════════════
    POMODORO TIMER
 ══════════════════════════════════════════ */
 .pomodoro-wrapper { position: relative; }

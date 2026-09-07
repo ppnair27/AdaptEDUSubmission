@@ -3,6 +3,8 @@ package procrastination_alg;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +29,21 @@ public class TaskManager {
     // pulls task list data from the CSV file
     private static List<Task> loadTasksFromCSV(String filePath) {
         List<Task> loadedTasks = new ArrayList<>();
-        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+        if (filePath == null || filePath.trim().isEmpty()) {
+            return loadedTasks;
+        }
+        Reader reader;
+        if (filePath.contains("\n") || filePath.contains(",")) {
+            reader = new StringReader(filePath);
+        } else {
+            try {
+                reader = new FileReader(filePath);
+            } catch (Exception e) {
+                System.err.println("Warning: Could not open file " + filePath + " (" + e.getMessage() + ")");
+                return loadedTasks;
+            }
+        }
+        try (BufferedReader br = new BufferedReader(reader)) {
             String line = br.readLine(); // Skip header
             while ((line = br.readLine()) != null) {
                 String[] values = parseCsvLine(line);
@@ -52,6 +68,11 @@ public class TaskManager {
             System.err.println("Warning: Could not load tasks from " + filePath + " (" + e.getMessage() + ")");
         }
         return loadedTasks;
+    }
+
+    public static String escapeCsv(String val) {
+        if (val == null) return "\"\"";
+        return "\"" + val.replace("\"", "\"\"") + "\"";
     }
 
     public static String[] parseCsvLine(String line) {
