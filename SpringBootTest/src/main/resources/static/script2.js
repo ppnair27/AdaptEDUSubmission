@@ -1,22 +1,7 @@
-/**
- * AdaptEDU — Main UI script
- *
- * Purpose: Implements the front-end UI interactions for the AdaptEDU
- * - calendar views (week/month/day)
- * - task/event creation
- * - fields 
- * - the Pomodoro 
- * - calls to the backend API endpoints under `/api/*`.
- *
- *   This file contains only UI and user-side logic. This should not be
- *   modified to change scheduling behavior!!!!!!!!
- *
- * Files referenced by this script:
- * - `index2.html`  (HTML layout and element IDs)
- * - `styles2.css`  (visual styles and color tokens)
- * - `/api/*`       (backend endpoints: schedule, task-time-adjust, state/save-csv)
- *
- */
+// AdaptEDU – Rebuilt Script
+// Features: week/month/day views · click-to-open detail popover
+//           archive (manual archive via popover)
+//           distinct category colors · Apple Calendar UX
 
 class Task {
     constructor(name, category, dueDate, userPriority, estimatedTime, maxSessionLength = 120, description = '', completed = false) {
@@ -87,16 +72,62 @@ let pomoWorkDuration = 25;
 let pomoBreakDuration = 5;
 let currentPomoBlock = null;
 
-// ── Category colors (must match CSS) ──────────────────────────────────────
-const CAT_COLORS = {
-    school:          '#82b1ff',
-    work:            '#a5d6a7',
-    personal:        '#ce93d8',
-    extracurricular: '#ffb74d',
-    extra:           '#ffb74d',
-    other:           '#b0bec5',
-};
-function catColor(cat) { return CAT_COLORS[cat] || CAT_COLORS.other; }
+// ── Category System ───────────────────────────────────────────────────────
+const DEFAULT_CATEGORIES = [
+    { id: 'school',          name: 'School',          color: '#82b1ff' },
+    { id: 'work',            name: 'Work',            color: '#a5d6a7' },
+    { id: 'personal',        name: 'Personal',        color: '#ce93d8' },
+    { id: 'extracurricular', name: 'Extracurricular', color: '#ffb74d' },
+    { id: 'other',           name: 'Other',           color: '#b0bec5' },
+];
+
+let categoriesList = [];
+let activeCategoryFilter = null;
+
+function loadCategories() {
+    try {
+        const saved = JSON.parse(localStorage.getItem('adaptedu.categories'));
+        if (Array.isArray(saved) && saved.length > 0) {
+            categoriesList = saved;
+            return;
+        }
+    } catch (e) {}
+    categoriesList = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+}
+
+function saveCategories() {
+    localStorage.setItem('adaptedu.categories', JSON.stringify(categoriesList));
+}
+
+function catColor(cat) {
+    if (!cat) return '#b0bec5';
+    const n = normCat(cat);
+    const found = categoriesList.find(c => c.id === n || c.name.toLowerCase() === n);
+    if (found) return found.color;
+    if (n === 'extra' || n === 'extracurricular') return '#ffb74d';
+    return '#b0bec5';
+}
+
+function getCategoryName(cat) {
+    if (!cat) return 'Other';
+    const n = normCat(cat);
+    const found = categoriesList.find(c => c.id === n || c.name.toLowerCase() === n);
+    if (found) return found.name;
+    return capFirst(cat);
+}
+
+function hexToRgba(hex, alpha = 0.2) {
+    if (!hex || typeof hex !== 'string') return `rgba(176, 190, 197, ${alpha})`;
+    let c = hex.replace('#', '').trim();
+    if (c.length === 3) c = c.split('').map(x => x + x).join('');
+    if (c.length !== 6) return `rgba(176, 190, 197, ${alpha})`;
+    const num = parseInt(c, 16);
+    if (isNaN(num)) return `rgba(176, 190, 197, ${alpha})`;
+    const r = (num >> 16) & 255;
+    const g = (num >> 8) & 255;
+    const b = num & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 // ── Init ───────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -107,7 +138,11 @@ document.addEventListener('DOMContentLoaded', () => {
     
     setGlobalTheme(globalTheme);
 
+    loadCategories();
     setupListeners();
+    populateCategoryDropdowns();
+    renderSidebarCategories();
+
     const loaded = loadState();
     if (!loaded) {
         seedDemoData();
@@ -127,12 +162,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (currentView === 'week') snapToMonday(currentDate);
     refreshAll(true);
+    setTimeout(() => {
+        checkEventOverlaps();
+        checkDailyWorkloadAndSleepRisk();
+    }, 600);
     
     // Start checking for active sessions
     if (sessionCheckInterval) clearInterval(sessionCheckInterval);
     sessionCheckInterval = setInterval(checkActiveSession, 10000);
 
-    // Register 'Service Worker' for PWA (PWA - Progressive Web App)
+    // Register Service Worker for PWA
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/service-worker.js')
             .then(reg => console.log('Service Worker registered', reg))
@@ -140,17 +179,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-/**
- * snapToMonday
- *
- * Ensure the provided Date object `d` is moved to the Monday of the same
- * week. 
- * 
- * The calendar UI uses a Monday-anchored week view this helper keeps
- * the anchor logic centralized and avoids duplicating date math.
- *
- * @param {Date} d - Date object to mutate (in-place)
- */
 function snapToMonday(d) {
     const day = d.getDay();
     const diff = day === 0 ? -6 : 1 - day;
@@ -159,13 +187,6 @@ function snapToMonday(d) {
 }
 
 // ── Event Listeners ────────────────────────────────────────────────────────
-/**
- * setupListeners
- *
- * Includes navigation controls (prev/next/today), view toggles, modal open/close handlers,
- * form submit listeners, and various UI-specific interactions (mobile
- * toggles, pomodoro buttons, settings). 
- */
 function setupListeners() {
     // Mobile Panel Toggles
     const mobileSidebarToggle = document.getElementById('mobile-sidebar-toggle');
@@ -296,14 +317,41 @@ function setupListeners() {
         
         const wake = document.getElementById('settings-wake').value;
         const sleep = document.getElementById('settings-sleep').value;
-        START_HOUR = parseInt(wake.split(':')[0], 10);
-        END_HOUR = parseInt(sleep.split(':')[0], 10);
+        const [wakeH, wakeM = 0] = wake.split(':').map(Number);
+        const [sleepH, sleepM = 0] = sleep.split(':').map(Number);
         
-        if (START_HOUR >= END_HOUR) { alert("Wake up time must be before sleep time!"); return; }
+        if (wakeH === sleepH && wakeM === sleepM) {
+            alert("Wake up time and sleep time cannot be identical!");
+            return;
+        }
+
+        START_HOUR = wakeH;
+        END_HOUR = sleepH;
         
         localStorage.setItem('adaptedu.settings', JSON.stringify({ theme: globalTheme, startHour: START_HOUR, endHour: END_HOUR }));
         settingsModal.classList.add('hidden');
         refreshAll(true);
+
+        // Check if sleep constraints provide less than 7 hours of sleep
+        // Calculates duration correctly across midnight (e.g. 23:00 to 01:00 = 2h, 02:00 to 08:00 = 6h)
+        const wakeMinutes = wakeH * 60 + wakeM;
+        const sleepMinutes = sleepH * 60 + sleepM;
+        const sleepDurationMins = (wakeMinutes - sleepMinutes + 1440) % 1440;
+        const sleepDurationHours = Math.round((sleepDurationMins / 60) * 10) / 10;
+
+        if (sleepDurationHours < 7) {
+            const fmtHour = (h, m = 0) => {
+                const p = h >= 12 ? 'PM' : 'AM';
+                const disp = h % 12 || 12;
+                return `${disp}:${String(m).padStart(2, '0')} ${p}`;
+            };
+            showScheduleAlert({
+                icon: '🌙',
+                title: 'Sleep Constraint Notice',
+                message: `Your schedule constraints are set for only ${sleepDurationHours} hours of sleep a night (bedtime at ${fmtHour(sleepH, sleepM)}, wake up at ${fmtHour(wakeH, wakeM)}), which is less than the healthy 7-hour minimum.`,
+                recommendation: 'Getting at least 7 to 8 hours of sleep each night is essential for focus, memory retention, and physical health. We recommend adjusting your sleep time earlier or your wake-up time later to ensure you get sufficient rest.'
+            });
+        }
     });
 
     // Task/Archive tabs
@@ -375,6 +423,7 @@ function setupListeners() {
         taskModal.classList.add('hidden');
         f.reset();
         refreshAll(true);
+        checkDailyWorkloadAndSleepRisk();
     });
 
     // Form: add event
@@ -386,7 +435,7 @@ function setupListeners() {
         const startTimeStr = `${eventDate}T${f['event-start-time'].value}`; // "YYYY-MM-DDThh:mm"
         const endTimeStr = `${eventDate}T${f['event-end-time'].value}`;
 
-        events.push(new CalEvent(
+        const newEvent = new CalEvent(
             f['event-name'].value,
             startTimeStr,
             endTimeStr,
@@ -395,7 +444,8 @@ function setupListeners() {
             f['event-category'].value,
             f['event-reminder-enabled'].value === 'yes',
             f['event-reminder-every-days'].value
-        ));
+        );
+        events.push(newEvent);
         
         eventModal.classList.add('hidden');
         f.reset();
@@ -403,9 +453,24 @@ function setupListeners() {
         f['event-reminder-every-days'].value = '1';
         updateEventReminderVisibility();
         refreshAll(true);
+
+        checkEventOverlaps(newEvent);
+        checkDailyWorkloadAndSleepRisk();
     });
 
     updateEventReminderVisibility();
+
+    // Alert modal listeners
+    const alertModal = document.getElementById('schedule-alert-modal');
+    ['close-alert-modal', 'confirm-alert-btn'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.addEventListener('click', closeScheduleAlert);
+    });
+    if (alertModal) {
+        alertModal.addEventListener('click', e => {
+            if (e.target === alertModal) closeScheduleAlert();
+        });
+    }
 
     // Close popover on outside click
     document.addEventListener('click', e => {
@@ -418,11 +483,213 @@ function setupListeners() {
     document.getElementById('close-popover').addEventListener('click', () => {
         document.getElementById('detail-popover').classList.add('hidden');
     });
+
+    // Manage Categories Modal listeners
+    const catModal = document.getElementById('categories-modal');
+    const editCatBtn = document.getElementById('edit-categories-btn');
+    if (editCatBtn && catModal) {
+        editCatBtn.addEventListener('click', () => {
+            renderManageCategoriesList();
+            catModal.classList.remove('hidden');
+        });
+    }
+    ['close-categories-modal', 'close-categories-btn'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn && catModal) {
+            btn.addEventListener('click', () => catModal.classList.add('hidden'));
+        }
+    });
+    if (catModal) {
+        catModal.addEventListener('click', e => {
+            if (e.target === catModal) catModal.classList.add('hidden');
+        });
+    }
+    const addCatForm = document.getElementById('add-category-form');
+    if (addCatForm) {
+        addCatForm.addEventListener('submit', e => {
+            e.preventDefault();
+            const nameInput = document.getElementById('new-cat-name');
+            const colorInput = document.getElementById('new-cat-color');
+            if (!nameInput || !nameInput.value.trim()) return;
+            addCategory(nameInput.value, colorInput ? colorInput.value : '#82b1ff');
+            nameInput.value = '';
+        });
+    }
+}
+
+// ── Schedule Conflict & Recommendation Alerts ─────────────────────────────
+const alertQueue = [];
+const acknowledgedOverloadDays = new Set();
+const acknowledgedEventOverlapPairs = new Set();
+
+function showScheduleAlert({ icon = '⚠️', title = 'Schedule Notice', message, recommendation }) {
+    const modal = document.getElementById('schedule-alert-modal');
+    if (!modal) return;
+
+    // If modal is currently displayed, queue the alert so it appears sequentially
+    if (!modal.classList.contains('hidden')) {
+        alertQueue.push({ icon, title, message, recommendation });
+        return;
+    }
+
+    const iconEl = document.getElementById('alert-modal-icon');
+    const titleEl = document.getElementById('alert-modal-title');
+    const msgEl = document.getElementById('alert-modal-message');
+    const recEl = document.getElementById('alert-modal-recommendation-text');
+
+    if (iconEl) iconEl.textContent = icon;
+    if (titleEl) titleEl.textContent = title;
+    if (msgEl) msgEl.textContent = message;
+    if (recEl) recEl.textContent = recommendation;
+
+    modal.classList.remove('hidden');
+}
+
+function closeScheduleAlert() {
+    const modal = document.getElementById('schedule-alert-modal');
+    if (modal) modal.classList.add('hidden');
+
+    // Display next queued notification if one exists
+    if (alertQueue.length > 0) {
+        const nextAlert = alertQueue.shift();
+        setTimeout(() => {
+            showScheduleAlert(nextAlert);
+        }, 220);
+    }
+}
+
+function checkEventOverlaps(newEvent = null) {
+    const activeEvents = events.filter(ev => !ev.archived);
+
+    if (newEvent) {
+        const conflicts = activeEvents.filter(ev => 
+            ev.id !== newEvent.id &&
+            newEvent.startTime < ev.endTime && ev.startTime < newEvent.endTime
+        );
+        if (conflicts.length > 0) {
+            conflicts.forEach(ev => {
+                const pairKey = [newEvent.id, ev.id].sort().join('--');
+                acknowledgedEventOverlapPairs.add(pairKey);
+            });
+            const conflictNames = conflicts.map(ev => `"${ev.name}" (${fmtTime(ev.startTime)} – ${fmtTime(ev.endTime)})`).join(', ');
+            showScheduleAlert({
+                icon: '⚠️',
+                title: 'Event Overlap Notice',
+                message: `Your event "${newEvent.name}" (${fmtTime(newEvent.startTime)} – ${fmtTime(newEvent.endTime)}) overlaps with ${conflictNames} on ${newEvent.startTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}.`,
+                recommendation: 'Because these events occur during the same time window, you may be double-booked. We recommend adjusting the event start or end times to optimize your schedule.'
+            });
+            return;
+        }
+    }
+
+    // General check across all active events
+    for (let i = 0; i < activeEvents.length; i++) {
+        for (let j = i + 1; j < activeEvents.length; j++) {
+            const a = activeEvents[i];
+            const b = activeEvents[j];
+            if (a.startTime < b.endTime && b.startTime < a.endTime) {
+                const pairKey = [a.id, b.id].sort().join('--');
+                if (!acknowledgedEventOverlapPairs.has(pairKey)) {
+                    acknowledgedEventOverlapPairs.add(pairKey);
+                    showScheduleAlert({
+                        icon: '⚠️',
+                        title: 'Event Overlap Notice',
+                        message: `Event "${a.name}" (${fmtTime(a.startTime)} – ${fmtTime(a.endTime)}) and "${b.name}" (${fmtTime(b.startTime)} – ${fmtTime(b.endTime)}) overlap on ${a.startTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}.`,
+                        recommendation: 'These events occur at the same time and may create a scheduling conflict. We recommend adjusting the event times to optimize your daily schedule.'
+                    });
+                    return;
+                }
+            }
+        }
+    }
+}
+
+function checkDailyWorkloadAndSleepRisk() {
+    const sleepMinutes = (START_HOUR * 60 - END_HOUR * 60 + 1440) % 1440;
+    const wakingMinutes = 1440 - sleepMinutes;
+    if (wakingMinutes <= 0) return;
+
+    const baseDate = new Date(currentDate);
+    const numDays = currentView === 'month' ? 14 : 7;
+
+    const isItemInSleep = (itemStart, itemEnd) => {
+        const startFrac = itemStart.getHours() + itemStart.getMinutes() / 60;
+        const endFrac   = itemEnd.getHours() + itemEnd.getMinutes() / 60;
+        if (START_HOUR < END_HOUR) {
+            return startFrac < START_HOUR || endFrac > END_HOUR;
+        } else {
+            return Math.max(startFrac, END_HOUR) < Math.min(endFrac, START_HOUR);
+        }
+    };
+
+    for (let i = 0; i < numDays; i++) {
+        const d = new Date(baseDate);
+        d.setDate(baseDate.getDate() + i);
+        const dayStart = new Date(d); dayStart.setHours(0, 0, 0, 0);
+        const dayEnd   = new Date(d); dayEnd.setHours(23, 59, 59, 999);
+        const dayKey   = `${dayStart.getFullYear()}-${String(dayStart.getMonth()+1).padStart(2,'0')}-${String(dayStart.getDate()).padStart(2,'0')}`;
+
+        // Fixed events on this day
+        const dayEvents = events.filter(ev => !ev.archived && ev.startTime >= dayStart && ev.startTime <= dayEnd);
+        const eventMins = dayEvents.reduce((sum, ev) => sum + Math.max(0, ev.getDurationMins()), 0);
+
+        // Scheduled task blocks on this day
+        const dayBlocks = scheduledBlocks.filter(b => b.startTime >= dayStart && b.startTime <= dayEnd);
+        const blockMins = dayBlocks.reduce((sum, b) => sum + Math.max(0, (b.endTime - b.startTime) / 60000), 0);
+
+        // Active tasks due on this day
+        const dueTasks = tasks.filter(t => !t.archived && !t.completed && t.dueDate >= dayStart && t.dueDate <= dayEnd);
+        const dueTaskMins = dueTasks.reduce((sum, t) => sum + Math.max(0, t.getMinutesRemaining()), 0);
+
+        const taskMins = Math.max(blockMins, dueTaskMins);
+        const totalDemandMins = eventMins + taskMins;
+
+        // Check if any scheduled block or event extends into sleep hours
+        const sleepInvasion = dayBlocks.some(b => isItemInSleep(b.startTime, b.endTime)) ||
+                              dayEvents.some(ev => isItemInSleep(ev.startTime, ev.endTime));
+
+        const isOverloaded = totalDemandMins > wakingMinutes || sleepInvasion;
+
+        if (isOverloaded) {
+            if (!acknowledgedOverloadDays.has(dayKey)) {
+                acknowledgedOverloadDays.add(dayKey);
+
+                const dayName = dayStart.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+                const totalHoursStr = (totalDemandMins / 60).toFixed(1).replace('.0', '');
+                const wakingHoursStr = (wakingMinutes / 60).toFixed(1).replace('.0', '');
+                const eventHoursStr = (eventMins / 60).toFixed(1).replace('.0', '');
+                const taskHoursStr = (taskMins / 60).toFixed(1).replace('.0', '');
+
+                const fmtHour = h => {
+                    const p = h >= 12 ? 'PM' : 'AM';
+                    const disp = h % 12 || 12;
+                    return `${disp}:00 ${p}`;
+                };
+
+                let detail = `On ${dayName}, you have approximately ${totalHoursStr} hours of commitments (${eventHoursStr}h events + ${taskHoursStr}h task work), which exceeds your available waking time of ${wakingHoursStr} hours.`;
+                if (sleepInvasion) {
+                    detail += ` Scheduled blocks also extend into your sleep hours (${fmtHour(END_HOUR)} – ${fmtHour(START_HOUR)}).`;
+                }
+                detail += ` Without adjustments, you won't have enough time to finish your tasks today without cutting into your sleep constraints or having to drop a task.`;
+
+                showScheduleAlert({
+                    icon: '⏳',
+                    title: 'Daily Schedule Overload',
+                    message: detail,
+                    recommendation: 'We recommend adjusting your task time estimates, rescheduling some tasks across upcoming days, or shortening non-essential events so you can optimize your time better without sacrificing your sleep.'
+                });
+                break;
+            }
+        } else {
+            acknowledgedOverloadDays.delete(dayKey);
+        }
+    }
 }
 
 function buildApiUrl(path) {
     // Because the Spring Boot backend is serving both our frontend UI and our API,
-    // just return the relative path. 
+    // we can simply return the relative path. The browser will automatically append 
+    // it to whatever domain the user is currently visiting (localhost, ngrok, or a real domain).
     return path;
 }
 
@@ -431,11 +698,6 @@ function delay(ms) {
 }
 
 // ── Pomodoro Logic ─────────────────────────────────────────────────────────
-/**
- * checkActiveSession
- *
- * Periodically checks whether a Pomodoro session is currently active. 
- */
 function checkActiveSession() {
     const now = new Date();
     // Find if the algorithm scheduled a task right now
@@ -494,11 +756,6 @@ function closePomodoro() {
     pausePomodoro();
 }
 
-/**
- * startPomodoro
- *
- * Begins the Pomodoro timer loop. 
- */
 function startPomodoro() {
     if (pomoIsRunning) return;
     pomoIsRunning = true;
@@ -516,11 +773,6 @@ function startPomodoro() {
     }, 1000);
 }
 
-/**
- * pausePomodoro
- *
- * Pause the running Pomodoro interval and update the control button state.
- */
 function pausePomodoro() {
     pomoIsRunning = false;
     clearInterval(pomoInterval);
@@ -529,13 +781,6 @@ function pausePomodoro() {
     btn.classList.remove('running');
 }
 
-/**
- * switchPomoPhase
- *
- * Switch between work and break phases.  
- *
- * @param {boolean} toWork - true to set the phase to work, false for break
- */
 function switchPomoPhase(toWork) {
     pomoIsWorking = toWork;
     pomoTimeLeft = (pomoIsWorking ? pomoWorkDuration : pomoBreakDuration) * 60;
@@ -608,19 +853,13 @@ async function fetchScheduledBlocks() {
             
         renderCalendar();
         checkActiveSession();
+        checkDailyWorkloadAndSleepRisk();
     } catch (err) {
         console.warn('Failed to fetch schedule blocks:', err);
     }
 }
 
 // ── Refresh ────────────────────────────────────────────────────────────────
-/**
- * refreshAll
- *
- * Re-render the entire UI. 
- *
- * @param {boolean} fetchSchedule - whether to fetch a new schedule from server
- */
 function refreshAll(fetchSchedule = false) {
     updateLabel();
     renderCalendar();
@@ -646,12 +885,18 @@ function updateLabel() {
 
 function updateStats() {
     const active = tasks.filter(t => !t.archived);
-    document.getElementById('stat-pending').textContent = active.filter(t => !t.completed).length;
-    document.getElementById('stat-overdue').textContent = active.filter(t => t.isOverdue()).length;
-    document.getElementById('stat-events').textContent  = events.filter(e => !e.archived).length;
+    const statPending = document.getElementById('stat-pending');
+    const statOverdue = document.getElementById('stat-overdue');
+    const statEvents  = document.getElementById('stat-events');
+    if (statPending) statPending.textContent = active.filter(t => !t.completed).length;
+    if (statOverdue) statOverdue.textContent = active.filter(t => t.isOverdue()).length;
+    if (statEvents)  statEvents.textContent  = events.filter(e => !e.archived).length;
 
-    const categories = ['school', 'work', 'personal', 'extracurricular', 'other'];
-    const counts = Object.fromEntries(categories.map(c => [c, 0]));
+    updateCategoryBars();
+}
+
+function updateCategoryBars() {
+    const counts = Object.fromEntries(categoriesList.map(c => [c.id, 0]));
 
     tasks.filter(t => !t.archived).forEach(t => {
         const category = normCat(t.category);
@@ -663,29 +908,189 @@ function updateStats() {
     });
 
     const maxCount = Math.max(1, ...Object.values(counts));
-    categories.forEach(category => {
-        const countEl = document.getElementById(`bar-count-${category}`);
-        const fillEl = document.getElementById(`cat-bar-${category}`);
+    categoriesList.forEach(category => {
+        const countEl = document.getElementById(`bar-count-${category.id}`);
+        const fillEl = document.getElementById(`cat-bar-${category.id}`);
         if (!countEl || !fillEl) return;
-        const count = counts[category] || 0;
+        const count = counts[category.id] || 0;
         countEl.textContent = String(count);
         const pct = Math.max(6, Math.round((count / maxCount) * 100));
         fillEl.style.width = count === 0 ? '0%' : `${pct}%`;
     });
 }
 
+function renderSidebarCategories() {
+    const listEl = document.getElementById('sidebar-category-list');
+    const barsEl = document.getElementById('sidebar-category-bars');
+    if (!listEl || !barsEl) return;
+
+    listEl.innerHTML = '';
+    barsEl.innerHTML = '';
+
+    categoriesList.forEach(cat => {
+        // Sidebar Category Item
+        const itemEl = document.createElement('div');
+        const isActive = activeCategoryFilter === cat.id;
+        itemEl.className = `category-item${isActive ? ' active-filter' : ''}`;
+        itemEl.dataset.category = cat.id;
+        itemEl.title = isActive ? `Active filter: ${cat.name} (click to clear)` : `Filter by ${cat.name}`;
+        itemEl.innerHTML = `
+            <div class="category-item-main">
+                <span class="dot" style="background: ${cat.color};"></span>
+                <span>${cat.name}</span>
+            </div>
+            ${isActive ? '<span class="filter-clear-badge" title="Clear filter">✕</span>' : ''}
+        `;
+        itemEl.addEventListener('click', (e) => {
+            if (e.target.classList.contains('filter-clear-badge')) {
+                e.stopPropagation();
+                setCategoryFilter(null);
+                return;
+            }
+            setCategoryFilter(activeCategoryFilter === cat.id ? null : cat.id);
+        });
+        listEl.appendChild(itemEl);
+
+        // Sidebar Load Bar
+        const barRow = document.createElement('div');
+        barRow.className = `category-bar-row${isActive ? ' active-filter' : ''}`;
+        barRow.dataset.cat = cat.id;
+        barRow.title = isActive ? `Active filter: ${cat.name} (click to clear)` : `Filter by ${cat.name}`;
+        barRow.innerHTML = `
+            <div class="category-bar-head">
+                <span class="dot" style="background: ${cat.color};"></span>
+                <span>${cat.name}</span>
+                <span class="bar-count" id="bar-count-${cat.id}">0</span>
+            </div>
+            <div class="category-bar-track">
+                <div class="category-bar-fill" id="cat-bar-${cat.id}" style="background: ${cat.color};"></div>
+            </div>
+        `;
+        barRow.addEventListener('click', () => {
+            setCategoryFilter(activeCategoryFilter === cat.id ? null : cat.id);
+        });
+        barsEl.appendChild(barRow);
+    });
+
+    updateCategoryBars();
+}
+
+function setCategoryFilter(catId) {
+    activeCategoryFilter = catId;
+    renderSidebarCategories();
+    renderCalendar();
+    const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab || 'tasks';
+    renderTaskList(activeTab);
+}
+
+function populateCategoryDropdowns() {
+    const taskSelect = document.getElementById('task-category');
+    const eventSelect = document.getElementById('event-category');
+    
+    [taskSelect, eventSelect].forEach(sel => {
+        if (!sel) return;
+        const currentVal = sel.value;
+        sel.innerHTML = '';
+        categoriesList.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat.id;
+            opt.textContent = cat.name;
+            sel.appendChild(opt);
+        });
+        if (categoriesList.some(c => c.id === currentVal)) {
+            sel.value = currentVal;
+        } else if (categoriesList.length > 0) {
+            sel.value = categoriesList[0].id;
+        }
+    });
+}
+
+function renderManageCategoriesList() {
+    const container = document.getElementById('existing-categories-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    categoriesList.forEach(cat => {
+        const item = document.createElement('div');
+        item.className = 'category-manage-item';
+        const isOther = cat.id === 'other';
+        item.innerHTML = `
+            <div class="category-manage-info">
+                <span class="category-color-swatch" style="background: ${cat.color};"></span>
+                <span class="category-manage-name">${cat.name}</span>
+            </div>
+            ${isOther 
+                ? '<span style="font-size: 11px; color: var(--text-muted);">Default</span>' 
+                : `<button type="button" class="category-delete-btn" data-id="${cat.id}" title="Delete ${cat.name}">✕</button>`}
+        `;
+        if (!isOther) {
+            const delBtn = item.querySelector('.category-delete-btn');
+            delBtn.addEventListener('click', () => {
+                deleteCategory(cat.id);
+            });
+        }
+        container.appendChild(item);
+    });
+}
+
+function addCategory(name, color) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const id = trimmed.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+    if (!id) return;
+    if (categoriesList.some(c => c.id === id || c.name.toLowerCase() === trimmed.toLowerCase())) {
+        alert(`A category named "${trimmed}" already exists!`);
+        return;
+    }
+    categoriesList.push({
+        id: id,
+        name: trimmed,
+        color: color || '#82b1ff'
+    });
+    saveCategories();
+    populateCategoryDropdowns();
+    renderSidebarCategories();
+    renderManageCategoriesList();
+}
+
+function deleteCategory(catId) {
+    if (catId === 'other') return;
+    const cat = categoriesList.find(c => c.id === catId);
+    const catName = cat ? cat.name : catId;
+    if (!confirm(`Delete category "${catName}"? Any tasks or events in this category will be reassigned to "Other".`)) {
+        return;
+    }
+    tasks.forEach(t => {
+        if (normCat(t.category) === catId) t.category = 'other';
+    });
+    events.forEach(e => {
+        if (normCat(e.category) === catId) e.category = 'other';
+    });
+    categoriesList = categoriesList.filter(c => c.id !== catId);
+    if (activeCategoryFilter === catId) activeCategoryFilter = null;
+
+    saveCategories();
+    saveState();
+    populateCategoryDropdowns();
+    renderSidebarCategories();
+    renderManageCategoriesList();
+    renderCalendar();
+    const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab || 'tasks';
+    renderTaskList(activeTab);
+}
+
+function attachClearFilterListeners() {
+    document.querySelectorAll('.clear-filter-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            setCategoryFilter(null);
+        });
+    });
+}
+
 // ══════════════════════════════════════════
 // CALENDAR RENDERING
 // ══════════════════════════════════════════
-
-/**
- * renderCalendar
- *
- * Render the calendar view according to `currentView` (week/month/day).
- * This function translates `scheduledBlocks` and `events` into DOM blocks
- * placed inside the `#calendar` container. 
- * DOM - Document Object Models
- */
 function renderCalendar() {
     if (currentView === 'month') renderMonthView();
     else renderTimeGrid(currentView === 'day' ? 1 : 7);
@@ -742,15 +1147,24 @@ function renderTimeGrid(numDays) {
         col.id = `day-col-${i}`;
 
         // Shade off-hours visually without restricting the grid space
-        const offHoursStart = document.createElement('div');
-        offHoursStart.className = 'off-hours-shade';
-        offHoursStart.style.cssText = `top: 0; height: ${START_HOUR * 60}px`;
-        col.appendChild(offHoursStart);
+        if (START_HOUR < END_HOUR) {
+            // Bedtime before midnight: off-hours are 0..START_HOUR and END_HOUR..24
+            const offHoursStart = document.createElement('div');
+            offHoursStart.className = 'off-hours-shade';
+            offHoursStart.style.cssText = `top: 0; height: ${START_HOUR * 60}px`;
+            col.appendChild(offHoursStart);
 
-        const offHoursEnd = document.createElement('div');
-        offHoursEnd.className = 'off-hours-shade';
-        offHoursEnd.style.cssText = `top: ${END_HOUR * 60}px; height: ${(24 - END_HOUR) * 60}px`;
-        col.appendChild(offHoursEnd);
+            const offHoursEnd = document.createElement('div');
+            offHoursEnd.className = 'off-hours-shade';
+            offHoursEnd.style.cssText = `top: ${END_HOUR * 60}px; height: ${(24 - END_HOUR) * 60}px`;
+            col.appendChild(offHoursEnd);
+        } else if (START_HOUR > END_HOUR) {
+            // Bedtime after midnight (e.g. sleep at 2 AM, wake at 8 AM): off-hours are END_HOUR..START_HOUR (2 AM to 8 AM)
+            const offHours = document.createElement('div');
+            offHours.className = 'off-hours-shade';
+            offHours.style.cssText = `top: ${END_HOUR * 60}px; height: ${(START_HOUR - END_HOUR) * 60}px`;
+            col.appendChild(offHours);
+        }
 
         body.appendChild(col);
     }
@@ -797,7 +1211,15 @@ function renderTimeGrid(numDays) {
         const catCls = normCat(item.category);
         block.className = `cal-block ${catCls}${isTask ? ' task-block' : ''}`;
         if (isTask && item.completed) block.classList.add('completed-task-block');
-        block.style.cssText = `top:${top}px;height:${height}px`;
+        block.style.top = `${top}px`;
+        block.style.height = `${height}px`;
+
+        const color = catColor(item.category);
+        if (catCls !== 'break') {
+            block.style.borderLeft = `3px solid ${color}`;
+            block.style.background = hexToRgba(color, 0.2);
+        }
+
         const timeStr = isTask && item.type === 'scheduledBlock'
             ? `${fmtTime(item.startTime)} – ${fmtTime(item.endTime)}`  // real slot
             : isTask
@@ -833,15 +1255,17 @@ function renderTimeGrid(numDays) {
         col.appendChild(block);
     };
 
-    events.filter(ev => !ev.archived && ev.startTime >= gridStart && ev.startTime < gridEnd).forEach(ev => {
-        const colIdx   = numDays === 1 ? 0 : dayIndex(ev.startTime);
-        const startFrac = timeFrac(ev.startTime);
-        const endFrac   = timeFrac(ev.endTime);
-        placeBlock(ev, colIdx, startFrac, endFrac, false);
-    });
+    events
+        .filter(ev => !ev.archived && ev.startTime >= gridStart && ev.startTime < gridEnd && (!activeCategoryFilter || normCat(ev.category) === activeCategoryFilter))
+        .forEach(ev => {
+            const colIdx   = numDays === 1 ? 0 : dayIndex(ev.startTime);
+            const startFrac = timeFrac(ev.startTime);
+            const endFrac   = timeFrac(ev.endTime);
+            placeBlock(ev, colIdx, startFrac, endFrac, false);
+        });
 
     scheduledBlocks
-        .filter(b => b.startTime >= gridStart && b.startTime < gridEnd)
+        .filter(b => b.startTime >= gridStart && b.startTime < gridEnd && (!activeCategoryFilter || normCat(b.category) === activeCategoryFilter))
         .forEach(b => {
             const colIdx    = numDays === 1 ? 0 : dayIndex(b.startTime);
             const startFrac = timeFrac(b.startTime);
@@ -909,8 +1333,8 @@ function renderMonthView() {
         const cellStart = new Date(cellDate); cellStart.setHours(0,0,0,0);
         const cellEnd   = new Date(cellDate); cellEnd.setHours(23,59,59,999);
 
-        const dayEvents = events.filter(ev => !ev.archived && ev.startTime >= cellStart && ev.startTime <= cellEnd);
-        const dayTasks  = scheduledBlocks.filter(b => b.startTime >= cellStart && b.startTime <= cellEnd);
+        const dayEvents = events.filter(ev => !ev.archived && ev.startTime >= cellStart && ev.startTime <= cellEnd && (!activeCategoryFilter || normCat(ev.category) === activeCategoryFilter));
+        const dayTasks  = scheduledBlocks.filter(b => b.startTime >= cellStart && b.startTime <= cellEnd && (!activeCategoryFilter || normCat(b.category) === activeCategoryFilter));
 
         const allItems = [...dayEvents, ...dayTasks];
         const MAX_SHOW = 3;
@@ -920,6 +1344,12 @@ function renderMonthView() {
             pill.className = `month-event-pill ${catCls}${item.type === 'task' ? ' task-pill' : ''}`;
             if (item.type === 'task' && item.completed) pill.classList.add('completed-task-pill');
             pill.textContent = item.name;
+            
+            const color = catColor(item.category);
+            if (catCls !== 'break') {
+                pill.style.borderLeft = `3px solid ${color}`;
+                pill.style.background = hexToRgba(color, 0.25);
+            }
             
             let tooltip = item.name;
             if (item.type === 'scheduledBlock') {
@@ -955,61 +1385,81 @@ function renderMonthView() {
 // ══════════════════════════════════════════
 // TASK / ARCHIVE PANEL
 // ══════════════════════════════════════════
-/**
- * renderTaskList
- *
- * Render either the tasks list, events list, or archived items depending
- * on the `tab` parameter. 
- *
- * @param {string} tab - 'tasks' | 'events' | 'archive'
- */
 function renderTaskList(tab = 'tasks') {
     const el      = document.getElementById('task-list');
     const subhead = document.getElementById('task-list-subheader');
     el.innerHTML  = '';
 
     if (tab === 'archive') {
-        subhead.textContent = 'Completed & Archived ↓';
-        const archivedTasks  = tasks.filter(t  => t.archived);
-        const archivedEvents = events.filter(ev => ev.archived);
+        const catFilterText = activeCategoryFilter ? ` · Filter: ${getCategoryName(activeCategoryFilter)}` : '';
+        subhead.innerHTML = `<span>Completed &amp; Archived ↓${catFilterText}</span>${activeCategoryFilter ? ' <a href="#" class="clear-filter-link" style="color: var(--accent); margin-left: 8px; font-size: 11px; text-decoration: underline;">Clear</a>' : ''}`;
+        
+        let archivedTasks  = tasks.filter(t  => t.archived);
+        let archivedEvents = events.filter(ev => ev.archived);
+        if (activeCategoryFilter) {
+            archivedTasks  = archivedTasks.filter(t => normCat(t.category) === activeCategoryFilter);
+            archivedEvents = archivedEvents.filter(ev => normCat(ev.category) === activeCategoryFilter);
+        }
         const all = [
             ...archivedTasks.map(t  => ({ item: t,  archivedAt: t.archivedAt })),
             ...archivedEvents.map(ev => ({ item: ev, archivedAt: ev.archivedAt }))
         ].sort((a, b) => (b.archivedAt || 0) - (a.archivedAt || 0));
 
         if (all.length === 0) {
-            el.innerHTML = '<div class="empty-state">Nothing archived yet.<br>Complete or archive tasks to see them here.</div>';
+            el.innerHTML = activeCategoryFilter
+                ? `<div class="empty-state">No archived items in "${getCategoryName(activeCategoryFilter)}".<br><a href="#" class="clear-filter-link" style="color: var(--accent); text-decoration: underline;">Clear filter</a></div>`
+                : '<div class="empty-state">Nothing archived yet.<br>Complete or archive tasks to see them here.</div>';
+            attachClearFilterListeners();
             return;
         }
         all.forEach(({ item }) => renderItem(item, el, true));
+        attachClearFilterListeners();
         return;
     }
 
     if (tab === 'events') {
-        subhead.textContent = 'Upcoming Events ↓';
-        const activeEvents = events.filter(ev => !ev.archived).sort((a, b) => a.startTime - b.startTime);
+        const catFilterText = activeCategoryFilter ? ` · Filter: ${getCategoryName(activeCategoryFilter)}` : '';
+        subhead.innerHTML = `<span>Upcoming Events ↓${catFilterText}</span>${activeCategoryFilter ? ' <a href="#" class="clear-filter-link" style="color: var(--accent); margin-left: 8px; font-size: 11px; text-decoration: underline;">Clear</a>' : ''}`;
+        
+        let activeEvents = events.filter(ev => !ev.archived);
+        if (activeCategoryFilter) {
+            activeEvents = activeEvents.filter(ev => normCat(ev.category) === activeCategoryFilter);
+        }
+        activeEvents.sort((a, b) => a.startTime - b.startTime);
 
         if (activeEvents.length === 0) {
-            el.innerHTML = '<div class="empty-state">No upcoming events.<br>Add an event to see it here.</div>';
+            el.innerHTML = activeCategoryFilter
+                ? `<div class="empty-state">No events in "${getCategoryName(activeCategoryFilter)}".<br><a href="#" class="clear-filter-link" style="color: var(--accent); text-decoration: underline;">Clear filter</a></div>`
+                : '<div class="empty-state">No upcoming events.<br>Add an event to see it here.</div>';
+            attachClearFilterListeners();
             return;
         }
 
         activeEvents.forEach(ev => renderItem(ev, el, false));
+        attachClearFilterListeners();
         return;
     }
 
     // Tasks tab
-    subhead.textContent = 'Priority Score ↓';
-    const activeTasks  = tasks.filter(t  => !t.archived).sort((a, b) => b.getPriorityScore() - a.getPriorityScore());
+    const catFilterText = activeCategoryFilter ? ` · Filter: ${getCategoryName(activeCategoryFilter)}` : '';
+    subhead.innerHTML = `<span>Priority Score ↓${catFilterText}</span>${activeCategoryFilter ? ' <a href="#" class="clear-filter-link" style="color: var(--accent); margin-left: 8px; font-size: 11px; text-decoration: underline;">Clear</a>' : ''}`;
+
+    let activeTasks  = tasks.filter(t  => !t.archived);
+    if (activeCategoryFilter) {
+        activeTasks = activeTasks.filter(t => normCat(t.category) === activeCategoryFilter);
+    }
+    activeTasks.sort((a, b) => b.getPriorityScore() - a.getPriorityScore());
 
     if (activeTasks.length === 0) {
-        el.innerHTML = `<div class="empty-state">${getAllClearMessage()}</div>`;
+        el.innerHTML = activeCategoryFilter
+            ? `<div class="empty-state">No tasks in "${getCategoryName(activeCategoryFilter)}".<br><a href="#" class="clear-filter-link" style="color: var(--accent); text-decoration: underline;">Clear filter</a></div>`
+            : `<div class="empty-state">${getAllClearMessage()}</div>`;
+        attachClearFilterListeners();
         return;
     }
 
-    if (activeTasks.length > 0) {
-        activeTasks.forEach(t => renderItem(t, el, false));
-    }
+    activeTasks.forEach(t => renderItem(t, el, false));
+    attachClearFilterListeners();
 }
 
 function getAllClearMessage() {
@@ -1051,6 +1501,9 @@ function renderItem(item, container, isArchive) {
 
         card.className = `task-card ${t.isOverdue() ? 'overdue' : ''} ${t.completed ? 'completed' : ''}`;
         card.dataset.category = t.category;
+        if (!t.isOverdue()) {
+            card.style.borderLeft = `3px solid ${catColor(t.category)}`;
+        }
 
         const chk = document.createElement('div');
         chk.className = `card-checkbox${t.completed ? ' checked' : ''}`;
@@ -1066,7 +1519,7 @@ function renderItem(item, container, isArchive) {
         card.innerHTML = `
             <div class="card-info">
                 <div class="card-name">${t.name}</div>
-                <div class="card-meta">${capFirst(t.category)} · Due ${t.dueDate.toLocaleDateString('en-US', {weekday:'short',month:'short',day:'numeric'})}</div>
+                <div class="card-meta">${getCategoryName(t.category)} · Due ${t.dueDate.toLocaleDateString('en-US', {weekday:'short',month:'short',day:'numeric'})}</div>
                 <div class="card-detail">Priority ${t.userPriority} · Est ${t.estimatedTime}m · Max Session: ${t.maxSessionLength === -1 ? 'None' : t.maxSessionLength + 'm'} · ${t.getMinutesRemaining()}m left</div>
             </div>
             <div class="card-score" style="color:${scoreColor}">${score === Infinity ? '∞' : score === -1 ? '✓' : score.toFixed(1)}</div>
@@ -1092,7 +1545,7 @@ function renderItem(item, container, isArchive) {
             <div class="card-info">
                 <div class="card-name">${ev.name}</div>
                 <div class="card-meta">${ev.startTime.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})} · ${fmtTime(ev.startTime)}–${fmtTime(ev.endTime)}</div>
-                <div class="card-detail">${capFirst(ev.category)} · ${ev.status}${ev.reminderEnabled ? ` · Remind every ${ev.reminderEveryDays} day(s)` : ''}</div>
+                <div class="card-detail">${getCategoryName(ev.category)} · ${ev.status}${ev.reminderEnabled ? ` · Remind every ${ev.reminderEveryDays} day(s)` : ''}</div>
             </div>
         `;
         card.addEventListener('click', e => showPopover(ev, e));
@@ -1147,7 +1600,7 @@ function showPopover(item, e) {
         const t = targetItem;
         row('📅', 'Due',        t.dueDate.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}));
         row('⏰', 'Due time',   fmtTime(t.dueDate));
-        row('🏷', 'Category',   capFirst(t.category));
+        row('🏷', 'Category',   getCategoryName(t.category));
         row('⭐', 'Priority',   `${t.userPriority}/10`);
         row('⏱', 'Est. time',  `${t.estimatedTime} min`);
         row('⏳', 'Max Session', t.maxSessionLength === -1 ? 'No Breaks' : `${t.maxSessionLength} min`);
@@ -1198,7 +1651,7 @@ function showPopover(item, e) {
         row('🕐', 'Time',     `${fmtTime(ev.startTime)} – ${fmtTime(ev.endTime)}`);
         row('⏱', 'Duration', `${ev.getDurationMins()} min`);
         row('📍', 'Location', ev.location);
-        row('🏷', 'Category', capFirst(ev.category));
+        row('🏷', 'Category', getCategoryName(ev.category));
         row('📌', 'Status',   ev.status);
         row('🔔', 'Reminder', ev.reminderEnabled ? `Every ${ev.reminderEveryDays} day(s) before event` : 'Off');
 
@@ -1341,7 +1794,7 @@ function queueCsvSync(payload, fetchSchedule) {
 
 async function syncStateToCsv(payload, fetchSchedule) {
     try {
-        const response = await fetch(buildApiUrl('/api/state/save-csv'), {
+        const response = await fetch(buildApiUrl('https://adaptedu-iy8o.onrender.com/api/state/save-csv'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -1431,8 +1884,10 @@ function fmtTime(d) {
 function capFirst(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
 function normCat(cat) {
     if (!cat) return 'other';
-    const c = cat.toLowerCase();
+    const c = cat.toLowerCase().trim();
     if (c === 'extra') return 'extracurricular';
+    const found = categoriesList.find(item => item.id === c || item.name.toLowerCase() === c);
+    if (found) return found.id;
     return c;
 }
 

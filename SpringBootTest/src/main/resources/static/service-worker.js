@@ -1,54 +1,46 @@
-/**
- * Service Worker for AdaptEDU (simple offline cache)
- *
- * What it does:
- * Provide a basic offline cache for core UI assets so the app can
- * load when the user is offline. 
- *
- * 
- * 
- * Avoid caching dynamic API responses here — the UI calls `/api/*` which
- *   should be handled by the backend!!!!
- */
-const CACHE_NAME = 'adaptedu-cache-v1';
+const CACHE_NAME = 'adaptedu-cache-v3';
 
-// Add the core files of your web app here
 const urlsToCache = [
     '/',
+    '/index2.html',
+    '/styles2.css',
     '/script2.js',
-    '/manifest.json',
-    '/styles2.css'
+    '/manifest.json'
 ];
 
 // Install the service worker and cache files
 self.addEventListener('install', event => {
+    self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then(cache => {
-                return cache.addAll(urlsToCache);
-            })
-    );
-    // Immediately take control of the page on next load so updated cache is used
-    self.skipWaiting();
-});
-self.addEventListener('activate', event => {
-    // On activation, remove any old caches not matching `CACHE_NAME`.
-    event.waitUntil(
-        caches.keys()
-            .then(names => Promise.all(
-                names.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))
-            ))
-            .then(() => self.clients.claim())
+            .then(cache => cache.addAll(urlsToCache))
+            .catch(err => console.warn('Cache install warning:', err))
     );
 });
 
-// Serve cached files when offline
+// Clean up old caches upon activation
+self.addEventListener('activate', event => {
+    event.waitUntil(
+        caches.keys().then(keys => Promise.all(
+            keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
+        )).then(() => self.clients.claim())
+    );
+});
+
+// Network-First strategy: fetch fresh content from network, fallback to cache offline
 self.addEventListener('fetch', event => {
+    // Only handle GET requests
+    if (event.request.method !== 'GET') return;
+
     event.respondWith(
-        caches.match(event.request)
+        fetch(event.request)
             .then(response => {
-                // Return cached version or fetch from the network
-                return response || fetch(event.request);
+                if (response && response.status === 200 && response.type === 'basic') {
+                    const responseClone = response.clone();
+                    caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
+                }
+                return response;
             })
+            .catch(() => caches.match(event.request))
     );
 });

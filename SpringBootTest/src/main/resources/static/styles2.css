@@ -1,7 +1,3 @@
-/*
- * UI styles for AdaptEDU
- Google calander was used as a reference point for the UI and Claude was used to assist in building the original framework to match google calander. All coding was done by group members other than any complex css methods that were used to create the initial framework of the calander. 
- */
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 
 :root {
@@ -14,9 +10,9 @@
 
     --text-primary: #f0f0f5;
     --text-secondary: #a0a0b8;
-    --text-muted:   #606078; 
+    --text-muted:   #606078;
 
-    /* Soft Pastels */
+    /* Category palette — Soft Pastels */
     --cat-school:   #82b1ff;   /* pastel blue */
     --cat-work:     #a5d6a7;   /* pastel green */
     --cat-personal: #ce93d8;   /* pastel purple */
@@ -81,9 +77,9 @@ body {
     min-height: 0;
 }
 
-/* 
+/* ══════════════════════════════════════════
    TOP BAR
-*/
+══════════════════════════════════════════ */
 .top-bar {
     display: flex;
     align-items: center;
@@ -185,9 +181,9 @@ button { cursor: pointer; border: none; font-family: var(--font); }
 }
 .accent-btn:hover { opacity: 0.85; }
 
-/* 
+/* ══════════════════════════════════════════
    MAIN LAYOUT
-*/
+══════════════════════════════════════════ */
 .main-body {
     display: flex;
     flex: 1;
@@ -195,7 +191,7 @@ button { cursor: pointer; border: none; font-family: var(--font); }
     overflow: hidden;
 }
 
-/* Sidebar */
+/* ── Sidebar ───────────────────────────── */
 .sidebar {
     width: 210px;
     background: var(--bg-panel);
@@ -314,7 +310,7 @@ button { cursor: pointer; border: none; font-family: var(--font); }
 .category-bar-fill.extracurricular { background: var(--cat-extracurricular); }
 .category-bar-fill.other { background: var(--cat-other); }
 
-/*  Content area  */
+/* ── Content area ──────────────────────── */
 .content-area {
     display: flex;
     flex: 1;
@@ -329,7 +325,7 @@ button { cursor: pointer; border: none; font-family: var(--font); }
     overflow-x: hidden;
 }
 
-/*  Task / Archive panel  */
+/* ── Task / Archive panel ──────────────── */
 .task-list-panel {
     width: 290px;
     background: var(--bg-panel);
@@ -375,7 +371,7 @@ button { cursor: pointer; border: none; font-family: var(--font); }
     padding: 6px 10px;
 }
 
-/*  Task / Event cards  */
+/* ── Task / Event cards ────────────────── */
 .task-card, .event-card {
     background: var(--bg-card);
     border: 1px solid var(--border-light);
@@ -451,9 +447,9 @@ button { cursor: pointer; border: none; font-family: var(--font); }
     line-height: 1.6;
 }
 
-/* 
+/* ══════════════════════════════════════════
    CALENDAR GRID (WEEK / DAY)
- */
+══════════════════════════════════════════ */
 .calendar-wrapper {
     display: flex;
     flex-direction: column;
@@ -533,7 +529,7 @@ button { cursor: pointer; border: none; font-family: var(--font); }
 }
 .cal-day-col.today-col { background-color: rgba(79,142,247,0.025); }
 
-/*  Calendar blocks  */
+/* ── Calendar blocks ───────────────────── */
 .cal-block {
     position: absolute;
     left: 3px; right: 3px;
@@ -660,9 +656,9 @@ body.theme-yellow .off-hours-shade {
     background: var(--accent-red);
 }
 
-/* 
+/* ══════════════════════════════════════════
    MONTH VIEW
- */
+══════════════════════════════════════════ */
 .month-wrapper { display: flex; flex-direction: column; height: 100%; }
 
 .month-header-row {
@@ -752,9 +748,9 @@ body.theme-yellow .off-hours-shade {
 }
 .month-more:hover { color: var(--accent); }
 
-/* 
+/* ══════════════════════════════════════════
    DETAIL POPOVER
- */
+══════════════════════════════════════════ */
 .detail-popover {
     position: fixed;
     background: var(--bg-panel);
@@ -835,9 +831,9 @@ body.theme-yellow .off-hours-shade {
 .btn-archive  { background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border); }
 .btn-delete   { background: rgba(255,69,58,0.15); color: var(--accent-red); border: 1px solid rgba(255,69,58,0.3); }
 
-/* 
-   FIELDS/MODALS
- */
+/* ══════════════════════════════════════════
+   MODALS
+══════════════════════════════════════════ */
 .modal-overlay {
     position: fixed; inset: 0;
     background: rgba(10,10,18,0.75);
@@ -927,9 +923,277 @@ body.theme-yellow .off-hours-shade {
     border-bottom-right-radius: 12px;
 }
 
-/* 
+/* ── Schedule Alert Modal ─────────────────── */
+.alert-modal-content {
+    max-width: 480px;
+    border: 1px solid rgba(255, 183, 77, 0.4);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 24px rgba(255, 183, 77, 0.12);
+}
+
+.alert-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 22px 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.alert-title-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.alert-modal-icon {
+    font-size: 22px;
+    line-height: 1;
+}
+
+.alert-modal-body {
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.alert-modal-message {
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.alert-recommendation-box {
+    background: rgba(255, 183, 77, 0.08);
+    border: 1px solid rgba(255, 183, 77, 0.28);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.alert-rec-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent-orange, #ffb74d);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.alert-rec-text {
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.alert-modal-footer {
+    padding: 14px 22px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* ── Category Management & Filtering ──────── */
+.sidebar-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.category-edit-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.category-edit-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.category-item {
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin: 2px 0;
+    transition: background 0.15s, color 0.15s, border 0.15s;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.category-item-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.category-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.category-item.active-filter {
+    background: rgba(79, 142, 247, 0.16);
+    border: 1px solid rgba(79, 142, 247, 0.35);
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.category-bar-row {
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 4px 6px;
+    transition: background 0.15s;
+}
+
+.category-bar-row:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.category-bar-row.active-filter {
+    background: rgba(79, 142, 247, 0.12);
+    border-left: 2px solid var(--accent);
+}
+
+.filter-clear-badge {
+    font-size: 11px;
+    color: var(--accent);
+    margin-left: 6px;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.filter-clear-badge:hover {
+    filter: brightness(1.2);
+}
+
+/* ── Manage Categories Modal ──────────────── */
+.categories-modal-content {
+    max-width: 480px;
+}
+
+.categories-modal-body {
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.existing-categories-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 8px;
+}
+
+.category-manage-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+
+.category-manage-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.category-color-swatch {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.category-manage-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.category-delete-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: 13px;
+    border-radius: 4px;
+    transition: color 0.15s, background 0.15s;
+}
+
+.category-delete-btn:hover {
+    color: var(--accent-red, #ef5350);
+    background: rgba(239, 83, 80, 0.12);
+}
+
+.add-category-section {
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+}
+
+.add-category-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.add-category-inputs {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.color-picker-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 5px 10px;
+    flex-shrink: 0;
+}
+
+.color-picker-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+input[type="color"]#new-cat-color {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+/* ══════════════════════════════════════════
    POMODORO TIMER
- */
+══════════════════════════════════════════ */
 .pomodoro-wrapper { position: relative; }
 
 .pomodoro-popup {
@@ -1013,7 +1277,7 @@ body.theme-yellow .off-hours-shade {
 }
 .pomo-skip-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
 
-/*  Pomodoro Theme Selector  */
+/* ── Pomodoro Theme Selector ──────────────── */
 .pomo-theme-selector {
     display: flex; gap: 12px; margin-top: 40px;
 }
@@ -1147,7 +1411,7 @@ body.theme-yellow .off-hours-shade {
 }
 .mobile-panel-toggle:hover { background: var(--bg-hover); }
 
-/*  MOBILE ADAPTATION  */
+/* ------------- MOBILE RESPONSIVENESS ------------- */
 @media (max-width: 850px) {
     .mobile-panel-toggle { display: block; }
 
@@ -1160,7 +1424,7 @@ body.theme-yellow .off-hours-shade {
 
     /* Make sidebar take full width and allow it to shrink/grow properly */
     .sidebar {
-        display: none; 
+        display: none; /* Hidden by default */
         width: 100%;
         height: auto;
         border-right: none;
@@ -1174,7 +1438,7 @@ body.theme-yellow .off-hours-shade {
 
     /* Task list falls below the calendar */
     .task-list-panel {
-        display: none;
+        display: none; /* Hidden by default */
         width: 100%;
         border-left: none;
         border-top: 1px solid var(--border);
