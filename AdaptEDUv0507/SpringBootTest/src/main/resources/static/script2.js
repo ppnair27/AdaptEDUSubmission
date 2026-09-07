@@ -390,7 +390,10 @@ async function initializeUserSession(user) {
    //}
 
     setTimeout(() => {
-        checkEventOverlaps();
+        const sleepOverlap = checkEventSleepOverlap();
+        if (!sleepOverlap) {
+            checkEventOverlaps();
+        }
         checkDailyWorkloadAndSleepRisk();
     }, 600);
 
@@ -737,7 +740,11 @@ function setupListeners() {
         refreshAll(true);
 
         if (occurrenceDates.length > 0) {
-            checkEventOverlaps(events[events.length - 1]);
+            const newest = events[events.length - 1];
+            const sleepOverlap = checkEventSleepOverlap(newest);
+            if (!sleepOverlap) {
+                checkEventOverlaps(newest);
+            }
         }
         checkDailyWorkloadAndSleepRisk();
 
@@ -1122,6 +1129,7 @@ function handleLogout() {
 const alertQueue = [];
 const acknowledgedOverloadDays = new Set();
 const acknowledgedEventOverlapPairs = new Set();
+const acknowledgedEventSleepOverlapIds = new Set();
 
 function showScheduleAlert({
     icon = '⚠️',
@@ -1221,6 +1229,90 @@ function closeScheduleAlert() {
     }
 }
 
+function isItemInSleep(itemStart, itemEnd) {
+    if (!itemStart || !itemEnd) return false;
+    const s = (itemStart instanceof Date) ? itemStart : new Date(itemStart);
+    const e = (itemEnd instanceof Date) ? itemEnd : new Date(itemEnd);
+    if (isNaN(s.getTime()) || isNaN(e.getTime())) return false;
+
+    if (e.toDateString() !== s.toDateString()) {
+        return true;
+    }
+
+    const startFrac = s.getHours() + s.getMinutes() / 60;
+    const endFrac   = e.getHours() + e.getMinutes() / 60;
+    if (START_HOUR < END_HOUR) {
+        return startFrac < START_HOUR || endFrac > END_HOUR;
+    } else {
+        return Math.max(startFrac, END_HOUR) < Math.min(endFrac, START_HOUR);
+    }
+}
+
+function checkEventSleepOverlap(newEvent = null) {
+    const fmtHour = h => {
+        const p = h >= 12 ? 'PM' : 'AM';
+        const disp = h % 12 || 12;
+        return `${disp}:00 ${p}`;
+    };
+    const sleepWindowStr = `${fmtHour(END_HOUR)} – ${fmtHour(START_HOUR)}`;
+
+    if (newEvent) {
+        if (!newEvent.archived && isItemInSleep(newEvent.startTime, newEvent.endTime)) {
+            acknowledgedEventSleepOverlapIds.add(newEvent.id);
+            const dateStr = newEvent.startTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            showScheduleAlert({
+                icon: '🌙',
+                theme: 'sleep',
+                badge: 'Sleep Window Conflict',
+                title: 'Event Overlaps With Sleep Time',
+                message: `Your event <strong>"${escapeHtml(newEvent.name)}"</strong> (${fmtTime(newEvent.startTime)} – ${fmtTime(newEvent.endTime)}) extends into your designated sleep hours (<strong>${sleepWindowStr}</strong>) on ${dateStr}.`,
+                metrics: [
+                    { label: 'Event', value: newEvent.name },
+                    { label: 'Event Time', value: `${fmtTime(newEvent.startTime)} – ${fmtTime(newEvent.endTime)}`, variant: 'alert' },
+                    { label: 'Sleep Window', value: sleepWindowStr, variant: 'alert' }
+                ],
+                recommendations: [
+                    `<strong>Shift event timing:</strong> Move this event into your daytime waking hours (${fmtHour(START_HOUR)} – ${fmtHour(END_HOUR)}).`,
+                    '<strong>Adjust sleep schedule:</strong> If your bedtime routine has changed, update wake/sleep hours in the Settings menu.',
+                    '<strong>Shorten event duration:</strong> Conclude earlier so you can get sufficient rest before bedtime.'
+                ]
+            });
+            return true;
+        }
+        return false;
+    }
+
+    // General check across all active events
+    const activeEvents = events.filter(ev => !ev.archived);
+    for (const ev of activeEvents) {
+        if (isItemInSleep(ev.startTime, ev.endTime)) {
+            if (!acknowledgedEventSleepOverlapIds.has(ev.id)) {
+                acknowledgedEventSleepOverlapIds.add(ev.id);
+                const dateStr = ev.startTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                showScheduleAlert({
+                    icon: '🌙',
+                    theme: 'sleep',
+                    badge: 'Sleep Window Conflict',
+                    title: 'Event Overlaps With Sleep Time',
+                    message: `Event <strong>"${escapeHtml(ev.name)}"</strong> (${fmtTime(ev.startTime)} – ${fmtTime(ev.endTime)}) overlaps with your designated sleep hours (<strong>${sleepWindowStr}</strong>) on ${dateStr}.`,
+                    metrics: [
+                        { label: 'Event', value: ev.name },
+                        { label: 'Event Time', value: `${fmtTime(ev.startTime)} – ${fmtTime(ev.endTime)}`, variant: 'alert' },
+                        { label: 'Sleep Window', value: sleepWindowStr, variant: 'alert' }
+                    ],
+                    recommendations: [
+                        `<strong>Shift event timing:</strong> Move this event into your daytime waking hours (${fmtHour(START_HOUR)} – ${fmtHour(END_HOUR)}).`,
+                        '<strong>Adjust sleep schedule:</strong> If your bedtime routine has changed, update wake/sleep hours in the Settings menu.',
+                        '<strong>Shorten event duration:</strong> Conclude earlier to preserve your rest.'
+                    ]
+                });
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 function checkEventOverlaps(newEvent = null) {
     const activeEvents = events.filter(ev => !ev.archived);
 
@@ -1295,16 +1387,6 @@ function checkDailyWorkloadAndSleepRisk() {
 
     const baseDate = new Date(currentDate);
     const numDays = currentView === 'month' ? 14 : 7;
-
-    const isItemInSleep = (itemStart, itemEnd) => {
-        const startFrac = itemStart.getHours() + itemStart.getMinutes() / 60;
-        const endFrac   = itemEnd.getHours() + itemEnd.getMinutes() / 60;
-        if (START_HOUR < END_HOUR) {
-            return startFrac < START_HOUR || endFrac > END_HOUR;
-        } else {
-            return Math.max(startFrac, END_HOUR) < Math.min(endFrac, START_HOUR);
-        }
-    };
 
     for (let i = 0; i < numDays; i++) {
         const d = new Date(baseDate);
@@ -1556,7 +1638,7 @@ async function fetchScheduledBlocks() {
         // Format local state data into a payload the backend expects
         const payload = {
             userId: currentUser ? currentUser.userId : null,
-            tasks: tasks.map(t => ({
+            tasks: tasks.filter(t => !t.archived && !t.completed).map(t => ({
                 id: t.id,
                 name: t.name,
                 category: t.category,
@@ -1567,7 +1649,7 @@ async function fetchScheduledBlocks() {
                 description: t.description,
                 completed: t.completed
             })),
-            events: events.map(ev => ({
+            events: events.filter(ev => !ev.archived).map(ev => ({
                 id: ev.id,
                 name: ev.name,
                 startTime: formatLocalISO(ev.startTime),
@@ -2726,8 +2808,15 @@ function normCat(cat) {
 
 function parseBackendDate(val) {
     if (!val) return new Date();
+    if (val instanceof Date) return val;
     if (Array.isArray(val)) {
         const [y, m, d, h = 0, min = 0, s = 0] = val;
+        return new Date(y, m - 1, d, h, min, s);
+    }
+    if (typeof val === 'string' && val.includes('T') && !val.endsWith('Z') && !val.includes('+') && !val.includes('-0') && !val.includes('-1')) {
+        const [datePart, timePart] = val.split('T');
+        const [y, m, d] = datePart.split('-').map(Number);
+        const [h = 0, min = 0, s = 0] = timePart.split(':').map(Number);
         return new Date(y, m - 1, d, h, min, s);
     }
     return new Date(val);

@@ -7,7 +7,9 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class TaskManager {
 
@@ -26,8 +28,34 @@ public class TaskManager {
         }
     }
 
+    public static LocalDateTime parseLocalDateTime(String s) {
+        if (s == null || s.trim().isEmpty()) return null;
+        s = s.trim();
+        if (s.startsWith("\"") && s.endsWith("\"") && s.length() >= 2) {
+            s = s.substring(1, s.length() - 1).trim();
+        }
+        try {
+            if (s.endsWith("Z") || s.matches(".*[+-]\\d\\d:\\d\\d$")) {
+                return java.time.OffsetDateTime.parse(s).toLocalDateTime();
+            }
+            if (s.contains(" ")) {
+                s = s.replace(" ", "T");
+            }
+            if (!s.contains("T")) {
+                return java.time.LocalDate.parse(s).atTime(23, 59, 59);
+            }
+            return LocalDateTime.parse(s);
+        } catch (Exception e) {
+            try {
+                return java.time.Instant.parse(s).atZone(java.time.ZoneId.systemDefault()).toLocalDateTime();
+            } catch (Exception e2) {
+                return null;
+            }
+        }
+    }
+
     // pulls task list data from the CSV file
-    private static List<Task> loadTasksFromCSV(String filePath) {
+    public static List<Task> loadTasksFromCSV(String filePath) {
         List<Task> loadedTasks = new ArrayList<>();
         if (filePath == null || filePath.trim().isEmpty()) {
             return loadedTasks;
@@ -44,24 +72,110 @@ public class TaskManager {
             }
         }
         try (BufferedReader br = new BufferedReader(reader)) {
-            String line = br.readLine(); // Skip header
+            String headerLine = br.readLine();
+            if (headerLine == null) return loadedTasks;
+
+            String[] headers = parseCsvLine(headerLine);
+            Map<String, Integer> colMap = new HashMap<>();
+            for (int i = 0; i < headers.length; i++) {
+                String clean = headers[i].trim().toLowerCase().replaceAll("[_\\-\\s]", "");
+                colMap.put(clean, i);
+            }
+
+            boolean hasHeaderMap = colMap.containsKey("name") || colMap.containsKey("task") || colMap.containsKey("duedate");
+
+            String line;
             while ((line = br.readLine()) != null) {
+                if (line.trim().isEmpty()) continue;
                 String[] values = parseCsvLine(line);
-                if (values.length >= 8) {
-                    try {
-                        loadedTasks.add(new Task(
-                                values[0], // name
-                                values[1], // category
-                                LocalDateTime.parse(values[2]), // dueDate
-                                Integer.parseInt(values[3]), // userPriority
-                                Integer.parseInt(values[4]), // estimatedTime
-                                Boolean.parseBoolean(values[5]), // completed
-                                Integer.parseInt(values[6]), // maximum session length
-                                values[7] // description
-                        ));
-                    } catch (Exception e) {
-                        System.err.println("Skipping invalid task row: " + line);
+                if (values.length < 3) continue;
+
+                try {
+                    String name = "Task";
+                    String category = "school";
+                    LocalDateTime dueDate = null;
+                    int userPriority = 5;
+                    int estimatedTime = 60;
+                    boolean completed = false;
+                    int maxSessionLength = 120;
+                    String description = "";
+
+                    if (hasHeaderMap) {
+                        int nameIdx = colMap.getOrDefault("name", colMap.getOrDefault("task", 0));
+                        int catIdx = colMap.getOrDefault("category", -1);
+                        int dueIdx = colMap.getOrDefault("duedate", colMap.getOrDefault("due", -1));
+                        int prioIdx = colMap.getOrDefault("userpriority", colMap.getOrDefault("priority", -1));
+                        int estIdx = colMap.getOrDefault("estimatedtime", colMap.getOrDefault("duration", -1));
+                        int compIdx = colMap.getOrDefault("completed", -1);
+                        int sessIdx = colMap.getOrDefault("maxsessionlength", colMap.getOrDefault("sessionlength", -1));
+                        int descIdx = colMap.getOrDefault("description", colMap.getOrDefault("desc", -1));
+
+                        if (nameIdx >= 0 && nameIdx < values.length && !values[nameIdx].trim().isEmpty()) {
+                            name = values[nameIdx].trim();
+                        }
+                        if (catIdx >= 0 && catIdx < values.length && !values[catIdx].trim().isEmpty()) {
+                            category = values[catIdx].trim();
+                        }
+                        String dueStr = (dueIdx >= 0 && dueIdx < values.length) ? values[dueIdx].trim() : "";
+                        dueDate = parseLocalDateTime(dueStr);
+                        if (dueDate == null) dueDate = LocalDateTime.now().plusDays(2);
+
+                        if (prioIdx >= 0 && prioIdx < values.length && !values[prioIdx].trim().isEmpty()) {
+                            userPriority = Integer.parseInt(values[prioIdx].trim());
+                        }
+                        if (estIdx >= 0 && estIdx < values.length && !values[estIdx].trim().isEmpty()) {
+                            estimatedTime = Integer.parseInt(values[estIdx].trim());
+                        }
+                        if (compIdx >= 0 && compIdx < values.length && !values[compIdx].trim().isEmpty()) {
+                            completed = Boolean.parseBoolean(values[compIdx].trim());
+                        }
+                        if (sessIdx >= 0 && sessIdx < values.length && !values[sessIdx].trim().isEmpty()) {
+                            maxSessionLength = Integer.parseInt(values[sessIdx].trim());
+                        }
+                        if (descIdx >= 0 && descIdx < values.length) {
+                            description = values[descIdx].trim();
+                        }
+                    } else {
+                        int offset = (values.length >= 9) ? 1 : 0;
+                        if (values.length > offset && !values[offset].trim().isEmpty()) {
+                            name = values[offset].trim();
+                        }
+                        if (values.length > offset + 1 && !values[offset + 1].trim().isEmpty()) {
+                            category = values[offset + 1].trim();
+                        }
+                        String dueStr = values.length > offset + 2 ? values[offset + 2].trim() : "";
+                        dueDate = parseLocalDateTime(dueStr);
+                        if (dueDate == null) dueDate = LocalDateTime.now().plusDays(2);
+
+                        if (values.length > offset + 3 && !values[offset + 3].trim().isEmpty()) {
+                            userPriority = Integer.parseInt(values[offset + 3].trim());
+                        }
+                        if (values.length > offset + 4 && !values[offset + 4].trim().isEmpty()) {
+                            estimatedTime = Integer.parseInt(values[offset + 4].trim());
+                        }
+                        if (values.length > offset + 5 && !values[offset + 5].trim().isEmpty()) {
+                            completed = Boolean.parseBoolean(values[offset + 5].trim());
+                        }
+                        if (values.length > offset + 6 && !values[offset + 6].trim().isEmpty()) {
+                            maxSessionLength = Integer.parseInt(values[offset + 6].trim());
+                        }
+                        if (values.length > offset + 7) {
+                            description = values[offset + 7].trim();
+                        }
                     }
+
+                    loadedTasks.add(new Task(
+                            name,
+                            category,
+                            dueDate,
+                            userPriority,
+                            estimatedTime,
+                            completed,
+                            maxSessionLength,
+                            description
+                    ));
+                } catch (Exception e) {
+                    System.err.println("Skipping invalid task row: " + line + " (" + e.getMessage() + ")");
                 }
             }
         } catch (IOException e) {

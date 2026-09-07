@@ -1,10 +1,10 @@
-const CACHE_NAME = 'adaptedu-cache-v2.5';
+const CACHE_NAME = 'adaptedu-cache-v2.6';
 
 const urlsToCache = [
     '/',
     '/index2.html',
-    '/styles2.css?v=2.5',
-    '/script2.js?v=2.5',
+    '/styles2.css?v=2.6',
+    '/script2.js?v=2.6',
     '/manifest.json'
 ];
 

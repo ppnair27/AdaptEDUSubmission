@@ -126,14 +126,22 @@ public class AdaptEDUController {
             for (EventDTO dto : request.events) {
                 if (dto.archived || dto.startTime == null || dto.endTime == null) continue;
                 try {
+                    LocalDateTime startDt = TaskManager.parseLocalDateTime(dto.startTime);
+                    LocalDateTime endDt = TaskManager.parseLocalDateTime(dto.endTime);
+                    if (startDt == null) continue;
+                    if (endDt == null) endDt = startDt.plusHours(1);
+
                     Event event = new Event(
-                            dto.name,
-                            LocalDateTime.parse(dto.startTime),
-                            LocalDateTime.parse(dto.startTime),
-                            LocalDateTime.parse(dto.endTime)
+                            dto.name != null ? dto.name : "Event",
+                            startDt,
+                            startDt,
+                            endDt
                     );
                     if (dto.category != null) {
                         event.setCategory(dto.category);
+                    }
+                    if (dto.status != null) {
+                        event.setStatus(dto.status);
                     }
                     fixedEvents.add(event);
                 } catch (Exception e) {
@@ -142,42 +150,50 @@ public class AdaptEDUController {
             }
         }
 
-        LocalDateTime start = (request.scheduleStart != null) ? LocalDateTime.parse(request.scheduleStart) : LocalDateTime.now();
-        LocalDateTime end = (request.scheduleEnd != null) ? LocalDateTime.parse(request.scheduleEnd) : LocalDateTime.now().plusDays(7);
+        LocalDateTime start = (request.scheduleStart != null) ? TaskManager.parseLocalDateTime(request.scheduleStart) : LocalDateTime.now();
+        if (start == null) start = LocalDateTime.now();
+        LocalDateTime end = (request.scheduleEnd != null) ? TaskManager.parseLocalDateTime(request.scheduleEnd) : start.plusDays(7);
+        if (end == null) end = start.plusDays(7);
 
         Scheduler scheduler = new Scheduler();
-        List<Event> schedule = new ArrayList<>();
+        List<Task> tasksToSchedule = new ArrayList<>();
 
-        String taskCsvData = null;
-        try {
-            taskCsvData = (request.userId != null)
-                    ? supabaseService.exportTasksCsv(request.userId).toString()
-                    : supabaseService.exportTasksCsv().toString();
-        } catch (Exception e) {
-            System.err.println("🚨 ERROR LOADING TASKS FROM SUPABASE FOR SCHEDULER: " + e.getMessage());
-        }
-
-        // Fallback or direct use: if Supabase export is unavailable or request has direct tasks
-        if (taskCsvData == null && request.tasks != null && !request.tasks.isEmpty()) {
-            StringBuilder csv = new StringBuilder();
-            csv.append("name,category,dueDate,userPriority,estimatedTime,completed,maxSessionLength,description\n");
+        if (request.tasks != null && !request.tasks.isEmpty()) {
             for (TaskDTO t : request.tasks) {
-                if (t.completed || t.archived) continue;
-                csv.append(TaskManager.escapeCsv(t.name)).append(",")
-                   .append(TaskManager.escapeCsv(t.category)).append(",")
-                   .append(TaskManager.escapeCsv(t.dueDate)).append(",")
-                   .append(t.userPriority).append(",")
-                   .append(t.estimatedTime).append(",")
-                   .append(t.completed).append(",")
-                   .append(t.maxSessionLength > 0 ? t.maxSessionLength : 120).append(",")
-                   .append(TaskManager.escapeCsv(t.description != null ? t.description : "")).append("\n");
+                if (t.completed || t.archived || t.name == null || t.name.trim().isEmpty()) continue;
+                LocalDateTime due = TaskManager.parseLocalDateTime(t.dueDate);
+                if (due == null) due = LocalDateTime.now().plusDays(2);
+                int priority = t.userPriority > 0 ? t.userPriority : 5;
+                int estTime = t.estimatedTime > 0 ? t.estimatedTime : 60;
+                int maxSession = t.maxSessionLength > 0 ? t.maxSessionLength : 120;
+                tasksToSchedule.add(new Task(
+                    t.name,
+                    t.category != null ? t.category : "school",
+                    due,
+                    priority,
+                    estTime,
+                    false,
+                    maxSession,
+                    t.description != null ? t.description : ""
+                ));
             }
-            taskCsvData = csv.toString();
         }
 
-        if (taskCsvData != null) {
-            schedule = scheduler.generateSchedule(fixedEvents, start, end, taskCsvData);
+        // If direct tasks were not provided in request, load from Supabase export
+        if (tasksToSchedule.isEmpty()) {
+            try {
+                java.nio.file.Path csvPath = (request.userId != null)
+                        ? supabaseService.exportTasksCsv(request.userId)
+                        : supabaseService.exportTasksCsv();
+                if (csvPath != null) {
+                    tasksToSchedule.addAll(TaskManager.loadTasksFromCSV(csvPath.toString()));
+                }
+            } catch (Exception e) {
+                System.err.println("🚨 ERROR LOADING TASKS FROM SUPABASE FOR SCHEDULER: " + e.getMessage());
+            }
         }
+
+        List<Event> schedule = scheduler.generateSchedule(fixedEvents, start, end, tasksToSchedule);
 
         return schedule.stream().map(e -> {
             EventDTO dto = new EventDTO();
