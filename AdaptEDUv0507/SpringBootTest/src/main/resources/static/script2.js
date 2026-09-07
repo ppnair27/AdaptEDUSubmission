@@ -2348,4 +2348,3 @@ function parseBackendDate(val) {
     }
     return new Date(val);
 }
-})
