@@ -845,11 +845,12 @@ function setupAuthListeners() {
         try {
             const redirectUrl = window.location.origin + window.location.pathname;
             const res = await fetch(buildApiUrl(`/api/auth/oauth/google-url?redirectTo=${encodeURIComponent(redirectUrl)}`));
-            const data = await res.json();
-            if (data && data.url) {
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data && data.url) {
                 window.location.href = data.url;
             } else {
-                showAuthAlert('Unable to start Google sign-in. Please try again.');
+                console.error('Google sign-in initialization failed:', res.status, data);
+                showAuthAlert(data.message || 'Unable to start Google sign-in. Please try again.');
             }
         } catch (err) {
             console.error('Google auth error:', err);
@@ -2260,6 +2261,69 @@ async function syncStateToCsv(payload, fetchSchedule) {
         }
     } catch (error) {
         console.warn('CSV sync unavailable. Local storage is still saved.', error);
+    }
+}
+
+async function loadCloudState(userId) {
+    if (!userId) return false;
+    try {
+        const res = await fetch(buildApiUrl(`/api/state/load?userId=${encodeURIComponent(userId)}`));
+        if (!res.ok) return false;
+        const data = await res.json();
+        if (data && data.status === 'ok') {
+            const rawTasks = Array.isArray(data.tasks) ? data.tasks : [];
+            const rawEvents = Array.isArray(data.events) ? data.events : [];
+            if (rawTasks.length === 0 && rawEvents.length === 0) return false;
+
+            tasks = rawTasks.map(t => {
+                const task = new Task(
+                    cleanStringValue(t.name),
+                    cleanStringValue(t.category),
+                    t.dueDate || t.due_date,
+                    t.userPriority || t.user_priority || 5,
+                    t.estimatedTime || t.estimated_time || 60,
+                    t.maxSessionLength || t.max_session_length || 120,
+                    cleanStringValue(t.description),
+                    !!t.completed
+                );
+                task.id = cleanIdValue(t.id || task.id, 'task');
+                task.archived = !!t.archived;
+                task.minutesSpent = Number.isFinite(t.minutesSpent) ? t.minutesSpent : (Number.isFinite(t.minutes_spent) ? t.minutes_spent : 0);
+                task.archivedAt = t.archivedAt || t.archived_at || null;
+                return task;
+            });
+
+            events = rawEvents.map(ev => {
+                const reminderEveryDays = Number.isFinite(ev.reminderEveryDays)
+                    ? ev.reminderEveryDays
+                    : (Number.isFinite(ev.reminder_every_days)
+                        ? ev.reminder_every_days
+                        : 1);
+
+                const event = new CalEvent(
+                    cleanStringValue(ev.name),
+                    ev.startTime || ev.start_time,
+                    ev.endTime || ev.end_time,
+                    cleanStringValue(ev.location),
+                    ev.status,
+                    cleanStringValue(ev.category),
+                    !!ev.reminderEnabled,
+                    reminderEveryDays,
+                    ev.recurrence || 'none',
+                    ev.recurrenceId || ev.recurrence_id || null
+                );
+                event.id = cleanIdValue(ev.id || event.id, 'event');
+                event.archived = !!ev.archived;
+                event.archivedAt = ev.archivedAt || ev.archived_at || null;
+                return event;
+            });
+
+            return true;
+        }
+        return false;
+    } catch (e) {
+        console.warn('Failed to load cloud state:', e);
+        return false;
     }
 }
 

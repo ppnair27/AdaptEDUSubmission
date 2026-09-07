@@ -165,16 +165,27 @@ public class AdaptEDUController {
     public Map<String, Object> saveStateCsv(@RequestBody Map<String, Object> payload) {
         System.out.println("📡 UI BACKGROUND SYNC TRIGGERED: Receiving data...");
         try {
+            Long userId = null;
+            if (payload.get("userId") != null) {
+                userId = Long.valueOf(payload.get("userId").toString());
+            } else if (payload.get("user_id") != null) {
+                userId = Long.valueOf(payload.get("user_id").toString());
+            }
+
             List<Map<String, Object>> tasks = (List<Map<String, Object>>) payload.getOrDefault("tasks", new ArrayList<>());
             List<Map<String, Object>> events = (List<Map<String, Object>>) payload.getOrDefault("events", new ArrayList<>());
 
-            System.out.println("📦 RECEIVED TASKS COUNT: " + tasks.size());
-            System.out.println("📦 RECEIVED EVENTS COUNT: " + events.size());
+            System.out.println("📦 RECEIVED TASKS COUNT: " + tasks.size() + (userId != null ? (" for userId: " + userId) : ""));
+            System.out.println("📦 RECEIVED EVENTS COUNT: " + events.size() + (userId != null ? (" for userId: " + userId) : ""));
 
-            supabaseService.saveState(tasks, events);
+            if (userId != null) {
+                supabaseService.saveState(userId, tasks, events);
+            } else {
+                supabaseService.saveState(tasks, events);
+            }
             
             System.out.println("✅ CLOUD SYNC SUCCESS: Background save complete!");
-            return Map.of("status", "success");
+            return Map.of("status", "ok", "message", "State saved successfully");
 
         } catch (Exception e) {
             System.err.println("🚨 BACKGROUND SYNC ERROR: " + e.getMessage());
@@ -183,6 +194,27 @@ public class AdaptEDUController {
                 "status", "error",
                 "message", "Failed to sync to cloud database: " + e.getMessage()
             );
+        }
+    }
+
+    @GetMapping("/state/load")
+    public Map<String, Object> loadUserState(@RequestParam(required = false) Long userId) {
+        Map<String, Object> response = new java.util.HashMap<>();
+        try {
+            if (userId != null) {
+                response.put("status", "ok");
+                response.put("tasks", supabaseService.fetchUserTasks(userId));
+                response.put("events", supabaseService.fetchUserEvents(userId));
+            } else {
+                response.put("status", "ok");
+                response.put("tasks", List.of());
+                response.put("events", List.of());
+            }
+            return response;
+        } catch (Exception e) {
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return response;
         }
     }
 }
